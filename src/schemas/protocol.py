@@ -172,12 +172,17 @@ class EvaporationTrigger(BaseModel):
 
 
 class EvaporationProfile(BaseModel):
-    """Evaporation parameter profile."""
+    """Evaporation parameter profile.
 
-    lower_height: float = Field(..., description="Flask lowering height in mm")
-    rpm: int = Field(..., ge=0, description="Rotation speed in rpm")
-    target_temperature: float = Field(..., ge=0, le=100, description="Water bath temp in Celsius")
-    target_pressure: float = Field(..., ge=0, description="Vacuum pressure in mbar")
+    Physical parameters are optional because some profiles (e.g. ``stop``)
+    may only contain a trigger with no physical parameters — per the
+    ``note.md`` specification.
+    """
+
+    lower_height: float | None = Field(default=None, description="Flask lowering height in mm")
+    rpm: int | None = Field(default=None, ge=0, description="Rotation speed in rpm")
+    target_temperature: float | None = Field(default=None, ge=0, le=100, description="Water bath temp in Celsius")
+    target_pressure: float | None = Field(default=None, ge=0, description="Vacuum pressure in mbar")
     trigger: EvaporationTrigger | None = None
 
 

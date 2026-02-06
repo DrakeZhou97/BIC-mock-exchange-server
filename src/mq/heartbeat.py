@@ -3,25 +3,28 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import aio_pika
 from loguru import logger
+
+from src.generators.entity_updates import generate_robot_timestamp
 
 if TYPE_CHECKING:
     from aio_pika.abc import AbstractExchange
 
     from src.config import MockSettings
     from src.mq.connection import MQConnection
+    from src.state.world_state import WorldState
 
 
 class HeartbeatPublisher:
     """Publishes periodic heartbeat messages to {robot_id}.hb via the topic exchange."""
 
-    def __init__(self, connection: MQConnection, settings: MockSettings) -> None:
+    def __init__(self, connection: MQConnection, settings: MockSettings, world_state: WorldState | None = None) -> None:
         self._connection = connection
         self._settings = settings
+        self._world_state = world_state
         self._exchange: AbstractExchange | None = None
         self._task: asyncio.Task | None = None
         self._running = False
@@ -69,9 +72,17 @@ class HeartbeatPublisher:
         if self._exchange is None:
             raise RuntimeError("HeartbeatPublisher not initialized. Call initialize() first.")
 
+        # Read current robot state from world state if available
+        current_state = "idle"
+        if self._world_state is not None:
+            robot_state = self._world_state.get_robot_state(self._settings.robot_id)
+            if robot_state:
+                current_state = robot_state.get("state", "idle")
+
         msg = HeartbeatMessage(
             robot_id=self._settings.robot_id,
-            timestamp=datetime.now(tz=UTC).isoformat(),
+            timestamp=generate_robot_timestamp(),
+            state=current_state,
         )
         routing_key = f"{self._settings.robot_id}.hb"
         body = msg.model_dump_json().encode()
@@ -80,8 +91,8 @@ class HeartbeatPublisher:
             aio_pika.Message(
                 body=body,
                 content_type="application/json",
-                delivery_mode=aio_pika.DeliveryMode.NOT_PERSISTENT,  # heartbeat is ephemeral
+                delivery_mode=aio_pika.DeliveryMode.NOT_PERSISTENT,
             ),
             routing_key=routing_key,
         )
-        logger.debug("Heartbeat published via {}", routing_key)
+        logger.debug("Heartbeat published via {} (state={})", routing_key, current_state)

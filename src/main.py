@@ -68,7 +68,10 @@ async def run_server() -> None:
         await mq.disconnect()
         raise
 
-    heartbeat = HeartbeatPublisher(mq, settings)
+    # --- Domain components ---
+    world_state = WorldState()
+
+    heartbeat = HeartbeatPublisher(mq, settings, world_state=world_state)
     try:
         await heartbeat.initialize()
         await heartbeat.start()
@@ -77,16 +80,14 @@ async def run_server() -> None:
         await mq.disconnect()
         raise
 
-    # --- Domain components ---
     scenario_manager = ScenarioManager(settings)
-    world_state = WorldState()
 
-    setup_sim = SetupSimulator(producer, settings, log_producer=log_producer)
-    photo_sim = PhotoSimulator(producer, settings, log_producer=log_producer)
-    cc_sim = CCSimulator(producer, settings, log_producer=log_producer)
-    consolidation_sim = ConsolidationSimulator(producer, settings, log_producer=log_producer)
-    evaporation_sim = EvaporationSimulator(producer, settings, log_producer=log_producer)
-    cleanup_sim = CleanupSimulator(producer, settings, log_producer=log_producer)
+    setup_sim = SetupSimulator(producer, settings, log_producer=log_producer, world_state=world_state)
+    photo_sim = PhotoSimulator(producer, settings, log_producer=log_producer, world_state=world_state)
+    cc_sim = CCSimulator(producer, settings, log_producer=log_producer, world_state=world_state)
+    consolidation_sim = ConsolidationSimulator(producer, settings, log_producer=log_producer, world_state=world_state)
+    evaporation_sim = EvaporationSimulator(producer, settings, log_producer=log_producer, world_state=world_state)
+    cleanup_sim = CleanupSimulator(producer, settings, log_producer=log_producer, world_state=world_state)
 
     # --- Consumer ---
     consumer = CommandConsumer(mq, producer, scenario_manager, settings, world_state=world_state)

@@ -60,21 +60,28 @@ class ResultProducer:
         )
 
     async def publish_intermediate_update(self, task_id: str, updates: Sequence[EntityUpdate]) -> None:
-        """Publish an intermediate entity-update message (code=-1)."""
-        from src.schemas.results import RobotResult as _RobotResult
+        """Publish an intermediate entity-update message via the log channel.
+
+        Intermediate updates are state changes that occur during long-running tasks
+        (e.g., CC running, evaporation progress). They should be published to the
+        log channel ({robot_id}.log), NOT the result channel, so the lab service
+        processes them as real-time state updates without affecting task completion status.
+        """
+        from src.schemas.results import LogMessage as _LogMessage
 
         if self._exchange is None:
             raise RuntimeError("Producer not initialized. Call initialize() first.")
 
-        intermediate = _RobotResult(
-            code=-1,
-            msg="intermediate_update",
+        from src.generators.entity_updates import generate_robot_timestamp
+
+        log_msg = _LogMessage(
             task_id=task_id,
             updates=list(updates),
+            timestamp=generate_robot_timestamp(),
         )
 
-        routing_key = f"{self._settings.robot_id}.result"
-        body = intermediate.model_dump_json().encode()
+        routing_key = f"{self._settings.robot_id}.log"
+        body = log_msg.model_dump_json().encode()
 
         await self._exchange.publish(
             aio_pika.Message(
@@ -85,4 +92,4 @@ class ResultProducer:
             routing_key=routing_key,
         )
 
-        logger.debug("Published intermediate update for task {}: {}", task_id, intermediate.model_dump_json(indent=2))
+        logger.debug("Published intermediate update via log channel for task {}", task_id)
