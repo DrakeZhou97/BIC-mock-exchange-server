@@ -211,7 +211,7 @@ class HeartbeatMessage(BaseModel):
 
     robot_id: str
     timestamp: str  # ISO format
-    state: str = "online"  # simple status indicator
+    state: str = "idle"  # simple status indicator
 
 
 # Re-export for backwards compatibility with existing mock server code

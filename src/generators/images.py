@@ -5,14 +5,13 @@ Generates deterministic mock image URLs with timestamps for device screen captur
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
+from src.generators.entity_updates import generate_robot_timestamp
 from src.schemas.results import CapturedImage
 
 
 def generate_image_url(base_url: str, work_station_id: str, device_id: str, component: str) -> str:
-    """Generate a mock image URL with timestamp."""
-    timestamp = datetime.now(tz=UTC).strftime("%Y%m%d_%H%M%S")
+    """Generate a mock image URL with timestamp in spec format."""
+    timestamp = generate_robot_timestamp()
     return f"{base_url}/{work_station_id}/{device_id}/{component}/{timestamp}.jpg"
 
 

@@ -6,7 +6,11 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 
-from src.generators.entity_updates import create_robot_update
+from src.generators.entity_updates import (
+    create_cc_system_update,
+    create_evaporator_update,
+    create_robot_update,
+)
 from src.generators.images import generate_captured_images
 from src.schemas.commands import TaskName
 from src.schemas.results import EntityUpdate, RobotResult
@@ -32,25 +36,100 @@ class PhotoSimulator(BaseSimulator):
         logger.info("Simulating take_photo for task {} ({} components)", task_id, len(components))
 
         # Log: robot arrived at station
-        await self._publish_log(task_id, [
-            create_robot_update(self.robot_id, params.work_station_id, params.end_state),
-        ], "robot arrived at station")
+        await self._publish_log(
+            task_id,
+            [
+                create_robot_update(self.robot_id, params.work_station_id, params.end_state),
+            ],
+            "robot arrived at station",
+        )
 
         # Delay scales with number of components
         await self._apply_delay(2.0 * len(components), 5.0 * len(components))
 
         # Log: per-component photo taken
         for component in components:
-            await self._publish_log(task_id, [
-                create_robot_update(self.robot_id, params.work_station_id, params.end_state),
-            ], f"photo taken for {component}")
+            await self._publish_log(
+                task_id,
+                [
+                    create_robot_update(self.robot_id, params.work_station_id, params.end_state),
+                ],
+                f"photo taken for {component}",
+            )
 
+        # Build updates list starting with robot state
         updates: list[EntityUpdate] = [
             create_robot_update(self.robot_id, params.work_station_id, params.end_state),
         ]
+
+        # Add device state update if available in world_state
+        device_update = self._get_device_update(params.device_id, params.device_type)
+        if device_update is not None:
+            updates.append(device_update)
+            logger.debug("Added device state update for {} ({})", params.device_id, params.device_type)
+        else:
+            logger.debug(
+                "No device state found in world_state for {} ({})",
+                params.device_id,
+                params.device_type,
+            )
 
         images = generate_captured_images(
             self.image_base_url, params.work_station_id, params.device_id, params.device_type, components
         )
 
         return RobotResult(code=0, msg="take_photo completed", task_id=task_id, updates=updates, images=images)
+
+    def _get_device_update(self, device_id: str, device_type: str) -> EntityUpdate | None:
+        """Retrieve device state from world_state and create appropriate update.
+
+        Args:
+            device_id: Device identifier
+            device_type: Device type (e.g., "combiflash", "evaporator")
+
+        Returns:
+            EntityUpdate for the device if found in world_state, None otherwise
+        """
+        if self._world_state is None:
+            return None
+
+        # Map device_type to entity_type in world_state
+        # CC devices: "column_chromatography_system"
+        # Evaporator devices: "evaporator"
+        entity_type_map = {
+            "combiflash": "column_chromatography_system",
+            "column_chromatography": "column_chromatography_system",
+            "evaporator": "evaporator",
+        }
+
+        entity_type = entity_type_map.get(device_type)
+        if entity_type is None:
+            logger.warning("Unknown device_type for photo: {}", device_type)
+            return None
+
+        # Retrieve device state from world_state
+        device_state = self._world_state.get_entity(entity_type, device_id)
+        if device_state is None:
+            return None
+
+        # Create appropriate update based on entity type
+        if entity_type == "column_chromatography_system":
+            return create_cc_system_update(
+                system_id=device_id,
+                state=device_state.get("state", "idle"),
+                experiment_params=device_state.get("experiment_params"),
+                start_timestamp=device_state.get("start_timestamp"),
+            )
+        elif entity_type == "evaporator":
+            return create_evaporator_update(
+                evaporator_id=device_id,
+                running=device_state.get("running", False),
+                lower_height=device_state.get("lower_height", 0.0),
+                rpm=device_state.get("rpm", 0),
+                target_temperature=device_state.get("target_temperature", 0.0),
+                current_temperature=device_state.get("current_temperature", 0.0),
+                target_pressure=device_state.get("target_pressure", 0.0),
+                current_pressure=device_state.get("current_pressure", 0.0),
+            )
+
+        return None

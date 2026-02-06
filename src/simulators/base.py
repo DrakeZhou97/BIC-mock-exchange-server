@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from src.mq.producer import ResultProducer
     from src.schemas.commands import TaskName
     from src.schemas.results import EntityUpdate, RobotResult
+    from src.state.world_state import WorldState
 
 
 class BaseSimulator(ABC):
@@ -30,10 +31,12 @@ class BaseSimulator(ABC):
         settings: MockSettings,
         *,
         log_producer: LogProducer | None = None,
+        world_state: WorldState | None = None,
     ) -> None:
         self._producer = producer
         self._settings = settings
         self._log_producer = log_producer
+        self._world_state = world_state
 
     @property
     def robot_id(self) -> str:
@@ -60,9 +63,7 @@ class BaseSimulator(ABC):
         """Simulate a robot task and return the result."""
         ...
 
-    async def _publish_log(
-        self, task_id: str, updates: Sequence[EntityUpdate], msg: str = "state_update"
-    ) -> None:
+    async def _publish_log(self, task_id: str, updates: Sequence[EntityUpdate], msg: str = "state_update") -> None:
         """Publish a real-time log entry via the log channel if a LogProducer is available."""
         if self._log_producer is not None:
             await self._log_producer.publish_log(task_id, updates, msg)

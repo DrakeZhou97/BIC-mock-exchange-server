@@ -6,6 +6,8 @@ All functions are pure — no I/O, no side effects.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from src.schemas.results import (
     CartridgeProperties,
     CCSExtModuleProperties,
@@ -26,6 +28,20 @@ from src.schemas.results import (
     TubeRackProperties,
     TubeRackUpdate,
 )
+
+
+def generate_robot_timestamp() -> str:
+    """Generate timestamp in spec format: YYYY-MM-DD_HH-MM-SS.mmm
+
+    Example: 2025-01-15_10-30-45.123
+
+    This is the standardized timestamp format used across all robot messages
+    (logs, heartbeats, entity updates) to match the BIC system specification.
+    """
+    now = datetime.now(tz=UTC)
+    # Format: YYYY-MM-DD_HH-MM-SS.mmm
+    # strftime doesn't support milliseconds with 3 digits, so we format manually
+    return now.strftime("%Y-%m-%d_%H-%M-%S") + f".{now.microsecond // 1000:03d}"
 
 
 def create_robot_update(robot_id: str, location: str, state: str) -> RobotUpdate:
