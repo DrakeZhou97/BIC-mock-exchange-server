@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from src.generators.entity_updates import (
     create_cc_system_update,
     create_ccs_ext_module_update,
@@ -13,6 +15,7 @@ from src.generators.entity_updates import (
     create_sample_cartridge_update,
     create_silica_cartridge_update,
     create_tube_rack_update,
+    generate_robot_timestamp,
 )
 from src.generators.images import generate_captured_images, generate_image_url
 from src.generators.timing import (
@@ -33,6 +36,34 @@ from src.schemas.results import (
     SilicaCartridgeUpdate,
     TubeRackUpdate,
 )
+
+# ── Timestamp Generator Tests ────────────────────────────────────────────
+
+
+class TestTimestampGenerator:
+    """Tests for timestamp generation helper."""
+
+    def test_generate_robot_timestamp_format(self) -> None:
+        """Verify timestamp matches spec format: YYYY-MM-DD_HH-MM-SS.mmm"""
+        timestamp = generate_robot_timestamp()
+
+        # Should match format: 2025-01-15_10-30-45.123
+        pattern = r"^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.\d{3}$"
+        assert re.match(pattern, timestamp), f"Timestamp {timestamp} doesn't match spec format"
+
+        # Verify structure: date_time.milliseconds
+        parts = timestamp.split(".")
+        assert len(parts) == 2, "Timestamp should have date_time and milliseconds parts"
+        assert len(parts[1]) == 3, "Milliseconds should be 3 digits"
+
+        # Verify underscore separator between date and time
+        date_time = parts[0]
+        assert "_" in date_time, "Date and time should be separated by underscore"
+
+        date_part, time_part = date_time.split("_")
+        assert len(date_part) == 10, "Date part should be YYYY-MM-DD (10 chars)"
+        assert len(time_part) == 8, "Time part should be HH-MM-SS (8 chars)"
+
 
 # ── Entity Update Factory Tests ──────────────────────────────────────────
 

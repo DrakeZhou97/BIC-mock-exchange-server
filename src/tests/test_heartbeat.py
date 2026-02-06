@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import aio_pika
 import pytest
@@ -24,7 +23,7 @@ class TestHeartbeatMessage:
         )
         assert msg.robot_id == "robot-001"
         assert msg.timestamp == "2025-01-15T10:30:00+00:00"
-        assert msg.state == "online"
+        assert msg.state == "idle"
 
     def test_custom_state(self) -> None:
         """Test construction with custom state."""
@@ -44,11 +43,11 @@ class TestHeartbeatMessage:
         data = msg.model_dump()
         assert data["robot_id"] == "robot-001"
         assert data["timestamp"] == "2025-01-15T10:30:00+00:00"
-        assert data["state"] == "online"
+        assert data["state"] == "idle"
 
         json_str = msg.model_dump_json()
         assert "robot-001" in json_str
-        assert "online" in json_str
+        assert "idle" in json_str
 
 
 class TestHeartbeatPublisher:
@@ -106,10 +105,10 @@ class TestHeartbeatPublisher:
         heartbeat = HeartbeatPublisher(mock_connection, mock_settings)
         await heartbeat.initialize()
 
-        # Mock datetime.now to get predictable timestamp
-        fixed_time = datetime(2025, 1, 15, 10, 30, 0, tzinfo=UTC)
-        with patch("src.mq.heartbeat.datetime") as mock_datetime:
-            mock_datetime.now.return_value = fixed_time
+        # Mock generate_robot_timestamp to get predictable timestamp in spec format
+        fixed_timestamp = "2025-01-15_10-30-00.000"
+        with patch("src.mq.heartbeat.generate_robot_timestamp") as mock_timestamp:
+            mock_timestamp.return_value = fixed_timestamp
 
             await heartbeat._publish_heartbeat()
 
@@ -130,8 +129,8 @@ class TestHeartbeatPublisher:
         # Check message body
         body_dict = HeartbeatMessage.model_validate_json(message.body)
         assert body_dict.robot_id == mock_settings.robot_id
-        assert body_dict.timestamp == fixed_time.isoformat()
-        assert body_dict.state == "online"
+        assert body_dict.timestamp == fixed_timestamp
+        assert body_dict.state == "idle"
 
     @pytest.mark.asyncio
     async def test_start_creates_background_task(self, mock_settings) -> None:

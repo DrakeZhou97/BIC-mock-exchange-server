@@ -165,6 +165,4 @@ class TestBaseSimulatorLogIntegration:
 
         await sim._publish_log("task-001", [robot_update], "test message")
 
-        mock_log_producer.publish_log.assert_called_once_with(
-            "task-001", [robot_update], "test message"
-        )
+        mock_log_producer.publish_log.assert_called_once_with("task-001", [robot_update], "test message")

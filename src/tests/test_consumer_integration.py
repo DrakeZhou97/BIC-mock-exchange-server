@@ -80,9 +80,7 @@ def consumer_with_simulators(mock_connection, mock_producer, mock_log_producer, 
     """Fully wired consumer with real simulators and world state."""
     world_state = WorldState()
     scenario_manager = ScenarioManager(mock_settings)
-    consumer = CommandConsumer(
-        mock_connection, mock_producer, scenario_manager, mock_settings, world_state=world_state
-    )
+    consumer = CommandConsumer(mock_connection, mock_producer, scenario_manager, mock_settings, world_state=world_state)
 
     # Create real simulators with mock producer
     from src.schemas.commands import TaskName
@@ -90,9 +88,15 @@ def consumer_with_simulators(mock_connection, mock_producer, mock_log_producer, 
     setup_sim = SetupSimulator(mock_producer, mock_settings, log_producer=mock_log_producer, world_state=world_state)
     photo_sim = PhotoSimulator(mock_producer, mock_settings, log_producer=mock_log_producer, world_state=world_state)
     cc_sim = CCSimulator(mock_producer, mock_settings, log_producer=mock_log_producer, world_state=world_state)
-    consolidation_sim = ConsolidationSimulator(mock_producer, mock_settings, log_producer=mock_log_producer, world_state=world_state)
-    evaporation_sim = EvaporationSimulator(mock_producer, mock_settings, log_producer=mock_log_producer, world_state=world_state)
-    cleanup_sim = CleanupSimulator(mock_producer, mock_settings, log_producer=mock_log_producer, world_state=world_state)
+    consolidation_sim = ConsolidationSimulator(
+        mock_producer, mock_settings, log_producer=mock_log_producer, world_state=world_state
+    )
+    evaporation_sim = EvaporationSimulator(
+        mock_producer, mock_settings, log_producer=mock_log_producer, world_state=world_state
+    )
+    cleanup_sim = CleanupSimulator(
+        mock_producer, mock_settings, log_producer=mock_log_producer, world_state=world_state
+    )
 
     # Register all simulators
     consumer.register_simulator(TaskName.SETUP_CARTRIDGES, setup_sim)
