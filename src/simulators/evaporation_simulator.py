@@ -34,10 +34,10 @@ class EvaporationSimulator(BaseSimulator):
     async def _simulate_start_evaporation(self, task_id: str, params: StartEvaporationParams) -> RobotResult:
         """LONG-RUNNING: Simulate evaporation with temperature/pressure ramp."""
         start_profile = params.profiles.start
-        target_temp = start_profile.target_temperature
-        target_pressure = start_profile.target_pressure
-        lower_height = start_profile.lower_height
-        rpm = start_profile.rpm
+        target_temp = start_profile.target_temperature if start_profile.target_temperature is not None else 25.0
+        target_pressure = start_profile.target_pressure if start_profile.target_pressure is not None else 1013.0
+        lower_height = start_profile.lower_height if start_profile.lower_height is not None else 0.0
+        rpm = start_profile.rpm if start_profile.rpm is not None else 0
 
         logger.info(
             "Simulating start_evaporation for task {} (target_temp={}, target_pressure={})",
