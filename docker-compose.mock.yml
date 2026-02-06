@@ -1,0 +1,33 @@
+services:
+  mock-robot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mock-robot-server
+    environment:
+      - MOCK_MQ_HOST=rabbitmq
+      - MOCK_MQ_PORT=5672
+      - MOCK_MQ_USER=guest
+      - MOCK_MQ_PASSWORD=guest
+      - MOCK_MQ_VHOST=/
+      - MOCK_MQ_COMMAND_EXCHANGE=robot.commands
+      - MOCK_MQ_COMMAND_ROUTING_KEY=robot.command
+      - MOCK_MQ_RESULT_QUEUE=robot.results
+      - MOCK_MQ_CONSUMER_QUEUE=mock.robot.commands
+      - MOCK_BASE_DELAY_MULTIPLIER=0.1
+      - MOCK_DEFAULT_SCENARIO=success
+      - MOCK_FAILURE_RATE=0.0
+      - MOCK_TIMEOUT_RATE=0.0
+      - MOCK_IMAGE_BASE_URL=http://minio:9000/bic-robot/captures
+      - MOCK_LOG_LEVEL=INFO
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    external: true
+    name: bic-lab-service_app-network
