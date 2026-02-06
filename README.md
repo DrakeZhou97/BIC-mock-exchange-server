@@ -216,49 +216,13 @@ mock-robot-server/
 │   ├── __main__.py                    # Entry point: python -m src.main
 │   ├── main.py                        # Server lifecycle (startup/shutdown)
 │   ├── config.py                      # pydantic-settings with MOCK_ prefix
-│   ├── schemas/
-│   │   ├── protocol.py                # Shared protocol types (enums, params, result types)
-│   │   ├── commands.py                # RobotCommand wrapper + re-exports
-│   │   └── results.py                 # RobotResult + entity update models
-│   ├── simulators/
-│   │   ├── base.py                    # BaseSimulator ABC + WorldState helpers
-│   │   ├── setup_simulator.py         # setup_cartridges, setup_tube_rack, collapse
-│   │   ├── cc_simulator.py            # start_cc (long), terminate_cc (quick)
-│   │   ├── photo_simulator.py         # take_photo
-│   │   ├── consolidation_simulator.py # fraction_consolidation
-│   │   ├── evaporation_simulator.py   # start_evaporation (long)
-│   │   └── cleanup_simulator.py       # stop_evaporation, setup/return bins, return cartridges/rack
-│   ├── generators/
-│   │   ├── entity_updates.py          # Factory functions for 10 entity update types
-│   │   ├── images.py                  # Mock image URL generation
-│   │   └── timing.py                  # Delay calculation with multiplier
-│   ├── scenarios/
-│   │   ├── manager.py                 # ScenarioManager (success/failure/timeout)
-│   │   └── failures.py                # Task-specific failure messages
-│   ├── state/
-│   │   ├── world_state.py             # In-memory entity state tracking
-│   │   └── preconditions.py           # Pre-execution validation per task
-│   ├── mq/
-│   │   ├── connection.py              # RabbitMQ robust connection (singleton)
-│   │   ├── consumer.py                # Command consumer + task routing
-│   │   ├── producer.py                # Result publisher (final results)
-│   │   ├── log_producer.py            # Log publisher (intermediate updates)
-│   │   └── heartbeat.py               # Periodic heartbeat publisher
-│   └── tests/
-│       ├── conftest.py                # Shared test fixtures
-│       ├── test_generators.py         # Entity update, image, timing tests
-│       ├── test_scenarios.py          # ScenarioManager + failure message tests
-│       ├── test_schemas.py            # Command/result parsing + serialization tests
-│       ├── test_consumer_integration.py # Consumer dispatch flow tests
-│       ├── test_simulator_integration.py # End-to-end task execution tests
-│       ├── test_cleanup_simulator.py  # Cleanup task tests (5 tasks)
-│       ├── test_heartbeat.py          # Heartbeat publisher lifecycle tests
-│       ├── test_log_producer.py       # Log producer tests
-│       ├── test_photo_device_state.py # Photo device state update tests
-│       ├── test_photo_integration.py  # Photo integration tests
-│       ├── test_preconditions.py      # Precondition checker tests
-│       ├── test_world_state.py        # WorldState tracking tests
-│       └── test_full_workflow.py      # Full CC experiment workflow tests
+│   ├── schemas/                       # Protocol contract definitions
+│   ├── simulators/                    # Per-skill task simulation logic
+│   ├── generators/                    # Pure factory functions for outputs
+│   ├── scenarios/                     # Failure and timeout injection
+│   ├── state/                         # In-memory world state tracking
+│   ├── mq/                            # RabbitMQ communication layer
+│   └── tests/                         # Unit and integration tests
 ├── docs/
 │   ├── note.md                        # Protocol spec (ground truth)
 │   └── ROBOT_ID_DESIGN.md            # Robot ID design decisions
@@ -268,6 +232,84 @@ mock-robot-server/
 ├── .env
 └── CLAUDE.md
 ```
+
+### Module Guide
+
+#### `mq/` — RabbitMQ Communication Layer
+
+The message queue module handles all AMQP communication with RabbitMQ. It implements the robot-side of the protocol: consuming commands and publishing results, logs, and heartbeats through a single TOPIC exchange.
+
+| File | Role |
+|------|------|
+| `connection.py` | Manages a robust AMQP connection with auto-reconnect. Provides lazy channel creation with QoS (prefetch count) and graceful disconnect. All MQ components share this singleton connection. |
+| `consumer.py` | The core dispatcher. Declares the `<robot_id>.cmd` queue, binds it to the TOPIC exchange, and processes incoming `RobotCommand` messages. For each message it: parses and validates parameters via Pydantic, checks preconditions against WorldState, applies scenario overrides (timeout/failure/success), and dispatches to the appropriate simulator. Long-running tasks (`start_cc`, `start_evaporation`) are launched as background `asyncio.Task`s so the consumer remains non-blocking. |
+| `producer.py` | Publishes final `RobotResult` messages to `<robot_id>.result` with persistent delivery mode. Called once per task upon completion (or failure). |
+| `log_producer.py` | Publishes real-time `LogMessage` entries to `<robot_id>.log` during task execution. Simulators call this to stream intermediate entity state changes (e.g., cartridge `available` → `mounted`) before the final result is ready. Uses non-persistent delivery for low overhead. |
+| `heartbeat.py` | Runs a background asyncio loop that publishes `HeartbeatMessage` to `<robot_id>.hb` at a configurable interval (default 2s). Reads the robot's current state from WorldState so the heartbeat accurately reflects operational status (e.g., `watch_column_machine_screen` during CC). |
+
+**How it simulates the robot service:** The real robot's `mars_service` consumes commands from the same exchange/routing-key pattern and publishes results back. This module replicates that exact AMQP topology — same exchange name, same routing keys, same message schemas — so the BIC Lab Service cannot distinguish mock from real.
+
+#### `schemas/` — Protocol Contract Definitions
+
+Defines the Pydantic models and enums that constitute the wire protocol between LabRun and the robot. These types are a self-contained copy of the BIC Lab Service's canonical protocol definitions.
+
+| File | Role |
+|------|------|
+| `protocol.py` | All shared protocol types: `TaskName` (13 tasks), `RobotState` (9 states including intermediates like `moving`, `terminating_cc`), `EquipmentState`, `BinState` enums, plus all `*Params` models (one per task) defining the expected command parameters. |
+| `commands.py` | The `RobotCommand` envelope model (`task_id`, `task_name`, `params`) and convenient re-exports of parameter models for import ergonomics. |
+| `results.py` | `RobotResult` (final task outcome with code, message, entity updates, images), `LogMessage` (intermediate state update), `HeartbeatMessage`, and 10 entity update models (`RobotUpdate`, `SilicaCartridgeUpdate`, `CCSystemUpdate`, `EvaporatorUpdate`, etc.) combined into a discriminated union `EntityUpdate` type for type-safe deserialization. |
+
+**How it simulates the robot service:** By using identical Pydantic models with the same field names, types, and validation rules as the production protocol, the mock server produces messages that are schema-identical to real robot output. Any LabRun consumer that can parse real robot messages can parse mock messages without modification.
+
+#### `simulators/` — Per-Skill Task Simulation Logic
+
+Each simulator encapsulates the behavior of one or more robot skills. Simulators receive parsed command parameters, simulate realistic execution timing, emit intermediate log updates, and return a `RobotResult` with entity state changes.
+
+| File | Role |
+|------|------|
+| `base.py` | Abstract base class (`BaseSimulator`) providing shared infrastructure: `_apply_delay()` for randomized timing with multiplier, `_publish_log()` for streaming intermediate updates, `_resolve_entity_id()` for looking up material UUIDs from WorldState by location, and access to settings (robot_id, multiplier, image_base_url). |
+| `setup_simulator.py` | Handles `setup_tubes_to_column_machine`, `setup_tube_rack`, and `collapse_cartridges`. Simulates the robot physically moving to a workstation, picking up materials, and mounting/dismounting them. Emits intermediate states (robot moving → materials mounted → robot idle). |
+| `cc_simulator.py` | Handles `start_column_chromatography` (long-running) and `terminate_column_chromatography` (quick). `start_cc` runs as a background task: publishes an initial update with CC system `running` and experiment parameters, then emits periodic progress updates at calculated intervals, and finally publishes the completion result. `terminate_cc` captures a screen image and transitions materials to `used` state. |
+| `photo_simulator.py` | Handles `take_photo`. Scales delay by component count, generates mock image URLs per component (`{base_url}/{ws_id}/{device_id}/{component}/{timestamp}.jpg`), and maps `device_type` strings to entity types for WorldState updates. Supports all device types: combiflash, CC system, evaporator. |
+| `consolidation_simulator.py` | Handles `fraction_consolidation`. Counts collected tubes from the `collect_config` bitmask, scales delay proportionally (3s per tube + 10s base), and produces updates for tube rack, round-bottom flask, and PCC left/right chutes with positioning data. |
+| `evaporation_simulator.py` | Handles `start_evaporation` (long-running). Publishes initial ambient sensor readings (25°C, 1013 mbar), then linearly interpolates temperature and pressure toward target values across periodic updates, simulating a realistic sensor ramp. Duration is extracted from the stop-trigger profile. |
+| `cleanup_simulator.py` | Handles 5 cleanup tasks: `stop_evaporation`, `setup_ccs_bins`, `return_ccs_bins`, `return_cartridges`, `return_tube_rack`. These are quick operations that transition entities to their post-use states (e.g., evaporator → stopped, bins → closed, cartridges → stored in waste). |
+
+**How it simulates the robot service:** Real robot skills involve physical motion, sensor feedback, and hardware interaction. Simulators replicate the *observable behavior* — the same sequence of state transitions, the same entity updates, the same timing profile (scaled by a configurable multiplier) — without any physical hardware. This lets LabRun exercise its full workflow logic against realistic robot responses.
+
+#### `generators/` — Pure Factory Functions
+
+Stateless factory functions that build the data structures simulators need. Separated from simulators to keep simulation logic clean and factories independently testable.
+
+| File | Role |
+|------|------|
+| `entity_updates.py` | 10 factory functions (one per entity type) that construct typed Pydantic update models: `create_robot_update()`, `create_silica_cartridge_update()`, `create_cc_system_update()`, `create_evaporator_update()`, etc. Also provides `generate_robot_timestamp()` for spec-compliant timestamps (`YYYY-MM-DD_HH-MM-SS.mmm`). |
+| `timing.py` | Delay calculation utilities: `calculate_delay(base_min, base_max, multiplier)` applies a random uniform distribution scaled by the speed multiplier with a floor. `calculate_cc_duration()` and `calculate_evaporation_duration()` compute long-running task durations from experiment parameters. `calculate_intermediate_interval()` divides total duration into evenly-spaced update windows. |
+| `images.py` | Mock image URL generation: `generate_image_url()` builds MinIO-style paths (`{base_url}/{ws_id}/{device_id}/{component}/{timestamp}.jpg`), and `generate_captured_images()` creates a list of `CapturedImage` objects for multi-component photo tasks. |
+
+**How it simulates the robot service:** The real robot captures images to MinIO and reports sensor data with hardware-derived timestamps. These generators produce structurally identical outputs — same URL patterns, same timestamp formats, same entity update shapes — using randomized but realistic values instead of actual hardware readings.
+
+#### `scenarios/` — Failure and Timeout Injection
+
+Controls whether a given task succeeds, fails with a realistic error, or silently times out. Enables chaos testing of LabRun's error-handling and retry logic.
+
+| File | Role |
+|------|------|
+| `manager.py` | `ScenarioManager` decides the outcome for each incoming command. Checks `timeout_rate` first (random roll → no response published), then `failure_rate` (random roll or `default_scenario=failure` → error result), otherwise success. Priority: timeout > failure > success. |
+| `failures.py` | Maps each `TaskName` to 4-5 realistic failure messages (e.g., `"Silica cartridge gripper malfunction"`, `"Pressure sensor reading abnormal"`). Each task has a 10-code error range (1010-1019 for setup_cartridges, 1020-1029 for setup_tube_rack, etc.). `get_random_failure()` returns a random (code, message) tuple. |
+
+**How it simulates the robot service:** Real robots fail in unpredictable ways — gripper malfunctions, sensor errors, communication timeouts. The scenario system injects these failure modes probabilistically, producing the same error codes and message patterns that real robot failures would generate, allowing LabRun to test its recovery paths without physical hardware breakdowns.
+
+#### `state/` — In-Memory World State Tracking
+
+Maintains a consistent view of all entities (robot, devices, materials) so the mock server can validate preconditions and produce contextually accurate responses across a multi-step workflow.
+
+| File | Role |
+|------|------|
+| `world_state.py` | Thread-safe in-memory store keyed by `(entity_type, entity_id)`. `apply_updates()` merges entity updates from completed tasks. `get_entity()` and `get_entities_by_type()` enable lookups. `reset()` clears all state (triggered by the `reset_state` special command). Used by simulators (entity ID resolution), heartbeat (current robot state), and precondition checker (validation). |
+| `preconditions.py` | `PreconditionChecker` validates task-specific prerequisites against WorldState before execution. Examples: `setup_cartridges` fails if the ext module already has cartridges (code 2001), `terminate_cc` fails if CC isn't running (code 2030), `start_evaporation` fails if the flask isn't ready (code 2050). Returns structured `PreconditionResult(ok, error_code, error_msg)`. |
+
+**How it simulates the robot service:** A real robot maintains physical state — cartridges are either mounted or not, the CC system is either running or idle. WorldState replicates this statefulness in memory, ensuring that command sequences produce the same precondition errors and state-dependent behaviors as a real robot. This catches workflow bugs (e.g., starting CC twice) without requiring physical equipment.
 
 ### Protocol Schema Management
 
