@@ -51,9 +51,11 @@ class TestPhotoIntegrationWorkflow:
             experiment_params={
                 "silicone_column": "40g",
                 "peak_gathering_mode": "peak",
-                "air_clean_minutes": 5,
+                "air_purge_minutes": 5.0,
                 "run_minutes": 30,
                 "need_equilibration": True,
+                "solvent_a": "hexane",
+                "solvent_b": "ethyl_acetate",
             },
             start_timestamp="2024-01-01T10:00:00Z",
         )

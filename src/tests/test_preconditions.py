@@ -151,7 +151,9 @@ class TestCCPreconditions:
             experiment_params=CCExperimentParams(
                 silicone_column="40g",
                 peak_gathering_mode="auto",
-                air_clean_minutes=5,
+                air_purge_minutes=5.0,
+                solvent_a="hexane",
+                solvent_b="ethyl_acetate",
                 run_minutes=30,
                 need_equilibration=True,
             ),
@@ -182,7 +184,9 @@ class TestCCPreconditions:
             experiment_params=CCExperimentParams(
                 silicone_column="40g",
                 peak_gathering_mode="auto",
-                air_clean_minutes=5,
+                air_purge_minutes=5.0,
+                solvent_a="hexane",
+                solvent_b="ethyl_acetate",
                 run_minutes=30,
                 need_equilibration=True,
             ),

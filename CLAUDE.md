@@ -52,7 +52,7 @@ The architecture runs on an **Edge Box** with:
 | Take Photo | `take_photo` | `take_photo` | `[DONE]` | Request/response schemas match |
 | Start CC | `start_column_chromatography` | `start_column_chromatography` | `[DONE]` | Long-running with intermediate updates |
 | Terminate CC | `terminate_column_chromatography` | `terminate_column_chromatography` | `[DONE]` | Includes screen capture on termination |
-| Fraction Consolidation | `fraction_consolidation` | `fraction_consolidation` | `[DONE]` | `collect_config` array handled correctly |
+| Fraction Consolidation | `collect_column_chromatography_fractions` | `collect_column_chromatography_fractions` | `[DONE]` | `collect_config` array handled correctly |
 | Start Evaporation | `start_evaporation` | `start_evaporation` | `[DONE]` | Profiles/triggers system implemented |
 | Collapse Cartridges | Not in spec (custom addition) | `collapse_cartridges` | `[EXTRA]` | Added for convenience; not in v0.2 spec — document or remove |
 | Stop Evaporation | `stop_evaporation` | `stop_evaporation` | `[DONE]` | Stops evaporator and returns flask |
@@ -212,7 +212,7 @@ uv run pytest src/tests/           # Run tests
 ```env
 MOCK_MQ_HOST=localhost
 MOCK_MQ_EXCHANGE=robot.exchange                          # Single TOPIC exchange
-MOCK_ROBOT_ID=00000000-0000-4000-a000-000000000001       # UUID format
+MOCK_ROBOT_ID=talos.001                                  # String format (was UUID)
 MOCK_BASE_DELAY_MULTIPLIER=0.01   # 100x speed (0.1 = 10x, 1.0 = realistic)
 MOCK_FAILURE_RATE=0.0             # 0.0-1.0
 MOCK_TIMEOUT_RATE=0.0             # 0.0-1.0
@@ -227,7 +227,7 @@ MOCK_HEARTBEAT_INTERVAL=2.0      # seconds between heartbeats
 4. `take_photo` — Photograph device components
 5. `start_column_chromatography` — Long-running CC with intermediate updates
 6. `terminate_column_chromatography` — Stop CC, capture results
-7. `fraction_consolidation` — Collect fractions, prepare for evaporation
+7. `collect_column_chromatography_fractions` — Collect fractions, prepare for evaporation
 8. `start_evaporation` — Long-running evaporation with sensor ramp
 9. `stop_evaporation` — Stop evaporator and return flask
 10. `setup_ccs_bins` — Set up waste bins at CC workstation
@@ -267,3 +267,5 @@ The mock server tracks an in-memory world state for all entities (robots, device
 - **Photo simulator must map all actual device_type values** — The `entity_type_map` in `photo_simulator.py` must include all device_type strings that BIC-lab-service sends (e.g., `isco_combiflash_nextgen_300`, `column_chromatography_system`, `rotary_evaporator`), not just shortened aliases. Missing mappings caused "Unknown device_type for photo" warnings (2026-02-07).
 
 - **Test entity IDs must match WorldState keys** — In `test_full_workflow.py`, entity lookups in assertions must use the actual entity IDs (e.g., `sc-001`, `samp-001`, `rack-loc-1`) that were registered in WorldState during setup, not `work_station_id`. WorldState keys materials by their entity ID, not by the work station where they're located (2026-02-07).
+
+- **v0.3 API migration sync (2026-02-09)** — Synchronized with BIC-lab-service v0.3 changes: `air_clean_minutes` → `air_purge_minutes` (float), new fields `solvent_a`/`solvent_b` in `CCExperimentParams`, task rename `fraction_consolidation` → `collect_column_chromatography_fractions`, `robot_id` now string `talos.001` (not UUID), CC workstation `fh_cc_001` (was `fh_ccs_001`), `EvaporationProfiles` restructured (`lower_pressure` → `updates` array), `CapturedImage` gained `create_time`, `RoundBottomFlaskProperties.state` supports complex object, `TerminateCCParams` gained optional `experiment_params`.

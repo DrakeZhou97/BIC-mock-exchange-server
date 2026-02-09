@@ -30,6 +30,7 @@ from src.schemas.protocol import (
     StopEvaporationParams,
     TakePhotoParams,
     TaskName,
+    TerminateCCExperimentParams,
     TerminateCCParams,
 )
 
@@ -51,6 +52,7 @@ __all__ = [
     "TakePhotoParams",
     "CCExperimentParams",
     "StartCCParams",
+    "TerminateCCExperimentParams",
     "TerminateCCParams",
     "FractionConsolidationParams",
     "EvaporationTrigger",

@@ -40,7 +40,7 @@ class RoundBottomFlaskProperties(BaseModel):
     """Properties for round bottom flask entity updates."""
 
     location: str
-    state: str  # Compound states like "used,evaporating"
+    state: str | dict  # Simple string or complex RoundBottomFlaskState object
 
 
 class CCSExtModuleProperties(BaseModel):

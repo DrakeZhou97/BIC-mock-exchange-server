@@ -47,7 +47,7 @@ class TaskName(StrEnum):
     TAKE_PHOTO = "take_photo"
     START_CC = "start_column_chromatography"
     TERMINATE_CC = "terminate_column_chromatography"
-    FRACTION_CONSOLIDATION = "fraction_consolidation"
+    FRACTION_CONSOLIDATION = "collect_column_chromatography_fractions"
     START_EVAPORATION = "start_evaporation"
     STOP_EVAPORATION = "stop_evaporation"
     SETUP_CCS_BINS = "setup_ccs_bins"
@@ -135,9 +135,11 @@ class CCExperimentParams(BaseModel):
 
     silicone_column: str = Field(..., description="Silica column spec, e.g. '40g'")
     peak_gathering_mode: str = Field(..., description="all, peak, or none")
-    air_clean_minutes: int = Field(..., ge=0, description="Air purge duration in minutes")
+    air_purge_minutes: float = Field(..., ge=0, description="Air purge duration in minutes")
     run_minutes: int = Field(..., ge=0, description="Total run duration in minutes")
     need_equilibration: bool = Field(..., description="Whether column equilibration needed")
+    solvent_a: str = Field(..., description="Solvent A identifier")
+    solvent_b: str = Field(..., description="Solvent B identifier")
     left_rack: str | None = Field(default=None, description="Left tube rack spec")
     right_rack: str | None = Field(default=None, description="Right tube rack spec")
 
@@ -152,12 +154,19 @@ class StartCCParams(BaseModel):
     end_state: RobotState
 
 
+class TerminateCCExperimentParams(BaseModel):
+    """Experiment parameters specific to terminate CC."""
+
+    air_purge_minutes: float = Field(..., ge=0, description="Air purge duration in minutes")
+
+
 class TerminateCCParams(BaseModel):
     """Parameters for terminate_column_chromatography task."""
 
     work_station_id: str
     device_id: str
     device_type: str
+    experiment_params: TerminateCCExperimentParams | None = None
     end_state: RobotState
 
 
@@ -199,7 +208,7 @@ class EvaporationProfiles(BaseModel):
 
     start: EvaporationProfile = Field(..., description="Initial profile (required)")
     stop: EvaporationProfile | None = None
-    lower_pressure: EvaporationProfile | None = None
+    updates: list[EvaporationProfile] | None = None
     reduce_bumping: EvaporationProfile | None = Field(
         default=None,
         description="Anti-bumping safety",
@@ -273,3 +282,4 @@ class CapturedImage(BaseModel):
     device_type: str
     component: str
     url: str
+    create_time: str | None = None

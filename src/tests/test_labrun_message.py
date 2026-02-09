@@ -42,8 +42,8 @@ async def send_test_message():
                 "sample_cartridge_id": "00000000-0000-4000-a000-000000000070",
                 "sample_cartridge_location_id": "bic_09B_l3_001",
                 "sample_cartridge_type": "ilok_40g",
-                "robot_id": "00000000-0000-4000-a000-000000000001"
-            }
+                "robot_id": "talos.001",
+            },
         }
 
         # Convert to JSON

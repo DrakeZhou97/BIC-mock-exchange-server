@@ -121,6 +121,25 @@ class EvaporationSimulator(BaseSimulator):
                     target_pressure,
                 )
 
+        # 4b. Apply updates profiles if provided (additional profile stages)
+        if params.profiles.updates:
+            for update_profile in params.profiles.updates:
+                if update_profile.target_temperature is not None:
+                    target_temp = update_profile.target_temperature
+                if update_profile.target_pressure is not None:
+                    target_pressure = update_profile.target_pressure
+                if update_profile.lower_height is not None:
+                    lower_height = update_profile.lower_height
+                if update_profile.rpm is not None:
+                    rpm = update_profile.rpm
+                logger.debug(
+                    "Applied update profile: target_temp={}, target_pressure={}, lower_height={}, rpm={}",
+                    target_temp,
+                    target_pressure,
+                    lower_height,
+                    rpm,
+                )
+
         # 5. Final result -- at target values, running=False
         final_updates = [
             create_robot_update(self.robot_id, params.work_station_id, params.post_run_state),

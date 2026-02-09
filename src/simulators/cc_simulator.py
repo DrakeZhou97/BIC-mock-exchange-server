@@ -121,7 +121,9 @@ class CCSimulator(BaseSimulator):
             create_cc_system_update(params.device_id, EntityState.RUNNING),
         ]
         logger.info("CC simulation complete for task {} ({:.0f}s)", task_id, total_duration)
-        return RobotResult(code=200, msg="start_column_chromatography completed", task_id=task_id, updates=final_updates)
+        return RobotResult(
+            code=200, msg="start_column_chromatography completed", task_id=task_id, updates=final_updates
+        )
 
     # ------------------------------------------------------------------
     # terminate_column_chromatography — QUICK
@@ -138,6 +140,13 @@ class CCSimulator(BaseSimulator):
         5. Return final result.
         """
         logger.info("Simulating terminate_cc for task {}", task_id)
+
+        # Log air_purge_minutes from command experiment_params if provided
+        if params.experiment_params is not None:
+            logger.info(
+                "Terminate CC experiment_params: air_purge_minutes={}",
+                params.experiment_params.air_purge_minutes,
+            )
 
         # Log: robot terminating CC
         await self._publish_log(

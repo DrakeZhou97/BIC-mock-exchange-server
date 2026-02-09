@@ -416,7 +416,7 @@ class TestFullBICWorkflow:
         producer.reset_mock()
         msg = make_mock_message(
             "task-007",
-            "fraction_consolidation",
+            "collect_column_chromatography_fractions",
             {
                 "work_station_id": ws_id,
                 "device_id": "cc-device-1",
@@ -726,9 +726,11 @@ class TestCCExperimentContextPersistence:
         experiment_params = CCExperimentParams(
             silicone_column="40g",
             peak_gathering_mode="all",
-            air_clean_minutes=5,
+            air_purge_minutes=5.0,
             run_minutes=30,
             need_equilibration=True,
+            solvent_a="hexane",
+            solvent_b="ethyl_acetate",
             left_rack="10-tube",
             right_rack="10-tube",
         )
@@ -749,9 +751,7 @@ class TestCCExperimentContextPersistence:
         await asyncio.sleep(0.2)
 
         # Verify start_cc intermediate updates were published via log producer
-        assert log_producer.publish_log.call_count > 0, (
-            "start_cc should have published intermediate log updates"
-        )
+        assert log_producer.publish_log.call_count > 0, "start_cc should have published intermediate log updates"
         # publish_log is called with (task_id, updates, msg) — second log call is "CC process started"
         # Find the log call that contains CC system updates
         initial_updates = None

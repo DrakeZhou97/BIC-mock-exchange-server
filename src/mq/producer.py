@@ -57,4 +57,3 @@ class ResultProducer:
             routing_key,
             result.model_dump_json(indent=2),
         )
-
