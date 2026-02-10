@@ -145,7 +145,7 @@ class TestEntityUpdateFactories:
     def test_create_cc_system_update_with_experiment_params(self) -> None:
         """Verify CC system update with experiment_params and start_timestamp."""
         exp_params = {
-            "silicone_cartridge": "40g",
+            "silicone_cartridge": "silica_40g",
             "peak_gathering_mode": "all",
             "air_purge_minutes": 5.0,
             "run_minutes": 30,
@@ -160,7 +160,7 @@ class TestEntityUpdateFactories:
 
         assert isinstance(update, CCSystemUpdate)
         assert update.properties.experiment_params is not None
-        assert update.properties.experiment_params.silicone_cartridge == "40g"
+        assert update.properties.experiment_params.silicone_cartridge == "silica_40g"
         assert update.properties.experiment_params.run_minutes == 30
         assert update.properties.start_timestamp == "2025-01-15T10:00:00Z"
 

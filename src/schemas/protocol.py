@@ -170,7 +170,7 @@ class CCGradientConfig(BaseModel):
 class SetupCartridgesParams(BaseModel):
     """Parameters for setup_tubes_to_column_machine task (v0.3 ground truth)."""
 
-    silica_cartridge_type: str = "silica_12g"
+    silica_cartridge_type: str = "silica_40g"
     sample_cartridge_location: str = "bic_09B_l3_002"
     sample_cartridge_type: str = "sample_40g"
     sample_cartridge_id: str

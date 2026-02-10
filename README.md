@@ -451,7 +451,7 @@ The agent publishes a command to mount silica and sample cartridges at the work 
   "task_id": "task-001",
   "task_type": "setup_tubes_to_column_machine",
   "params": {
-    "silica_cartridge_type": "silica_12g",
+    "silica_cartridge_type": "silica_40g",
     "sample_cartridge_location": "bic_09B_l3_002",
     "sample_cartridge_type": "sample_40g",
     "sample_cartridge_id": "sample_40g_001",

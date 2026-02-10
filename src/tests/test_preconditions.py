@@ -33,7 +33,7 @@ class TestSetupCartridgesPreconditions:
 
         params = SetupCartridgesParams(
             work_station="ws-1",
-            silica_cartridge_type="type-1",
+            silica_cartridge_type="silica_40g",
             sample_cartridge_location="storage-2",
             sample_cartridge_type="type-2",
             sample_cartridge_id="sac-1",
@@ -58,7 +58,7 @@ class TestSetupCartridgesPreconditions:
         checker = PreconditionChecker(ws)
         params = SetupCartridgesParams(
             work_station="ws-1",
-            silica_cartridge_type="type-1",
+            silica_cartridge_type="silica_40g",
             sample_cartridge_location="storage-2",
             sample_cartridge_type="type-2",
             sample_cartridge_id="sac-1",

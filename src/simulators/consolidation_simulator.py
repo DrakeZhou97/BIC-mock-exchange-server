@@ -66,6 +66,13 @@ class ConsolidationSimulator(BaseSimulator):
             substance=Substance(name="", zh_name="", unit=SubstanceUnit.ML, amount=0.0),
         )
 
+        # TODO: How the chute IDs get is not determined yet. Somehow get. left to Robot Team
+
+        left_chute_id = "pcc_left_chute_001"
+        right_chute_id = "pcc_right_chute_001"
+
+        # Log: robot pulling out tube rack
+
         updates = [
             create_robot_update(self.robot_id, params.work_station, RobotState.IDLE),
             create_tube_rack_update(
@@ -75,8 +82,8 @@ class ConsolidationSimulator(BaseSimulator):
                 description="pulled_out, ready_for_recovery",
             ),
             create_round_bottom_flask_update(flask_id, params.work_station, flask_state),
-            create_pcc_left_chute_update(params.work_station, state=DeviceState.USING),
-            create_pcc_right_chute_update(params.work_station, state=DeviceState.USING),
+            create_pcc_left_chute_update(chute_id=left_chute_id, state=DeviceState.USING),
+            create_pcc_right_chute_update(chute_id=right_chute_id, state=DeviceState.USING),
         ]
 
         return RobotResult(code=200, msg="success", task_id=task_id, updates=updates)

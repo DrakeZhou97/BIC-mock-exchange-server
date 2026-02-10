@@ -196,7 +196,7 @@ def test_apply_updates_with_complex_entities() -> None:
             properties={
                 "state": "running",
                 "experiment_params": {
-                    "silicone_column": "40g",
+                    "silicone_cartridge": "silica_40g",
                     "peak_gathering_mode": "all",
                     "air_clean_minutes": 5,
                     "run_minutes": 30,

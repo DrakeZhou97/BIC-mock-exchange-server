@@ -34,7 +34,7 @@ class TestCommandSchemas:
             "task_id": "task-001",
             "task_type": "setup_tubes_to_column_machine",
             "params": {
-                "silica_cartridge_type": "12g",
+                "silica_cartridge_type": "silica_40g",
                 "sample_cartridge_location": "loc-2",
                 "sample_cartridge_type": "sample",
                 "sample_cartridge_id": "samp-001",
@@ -50,7 +50,7 @@ class TestCommandSchemas:
     def test_setup_cartridges_params(self) -> None:
         """Validate all required fields for SetupCartridgesParams."""
         params = SetupCartridgesParams(
-            silica_cartridge_type="40g",
+            silica_cartridge_type="silica_40g",
             sample_cartridge_location="loc-2",
             sample_cartridge_type="sample",
             sample_cartridge_id="samp-001",
@@ -59,12 +59,12 @@ class TestCommandSchemas:
 
         assert params.sample_cartridge_id == "samp-001"
         assert params.work_station == "ws-1"
-        assert params.silica_cartridge_type == "40g"
+        assert params.silica_cartridge_type == "silica_40g"
 
     def test_start_cc_params_with_experiment(self) -> None:
         """Validate nested CCExperimentParams within StartCCParams."""
         exp = CCExperimentParams(
-            silicone_cartridge="40g",
+            silicone_cartridge="silica_40g",
             peak_gathering_mode="all",
             air_purge_minutes=5.0,
             run_minutes=30,
@@ -79,7 +79,7 @@ class TestCommandSchemas:
             experiment_params=exp,
         )
 
-        assert params.experiment_params.silicone_cartridge == "40g"
+        assert params.experiment_params.silicone_cartridge == "silica_40g"
         assert params.experiment_params.run_minutes == 30
         assert params.experiment_params.need_equilibration is True
 

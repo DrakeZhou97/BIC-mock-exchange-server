@@ -149,7 +149,7 @@ class TestMultiRobotScenarios:
             "task-r1-001",
             "setup_tubes_to_column_machine",
             {
-                "silica_cartridge_type": "silica_12g",
+                "silica_cartridge_type": "silica_40g",
                 "sample_cartridge_location": "bic_09B_l3_002",
                 "sample_cartridge_type": "sample_40g",
                 "sample_cartridge_id": "samp-001",
@@ -252,7 +252,7 @@ class TestFullBICWorkflow:
             "task-001",
             "setup_tubes_to_column_machine",
             {
-                "silica_cartridge_type": "silica_12g",
+                "silica_cartridge_type": "silica_40g",
                 "sample_cartridge_location": "bic_09B_l3_002",
                 "sample_cartridge_type": "sample_40g",
                 "sample_cartridge_id": "samp-001",
@@ -378,7 +378,7 @@ class TestLogStreamDuringExecution:
 
         params = SetupCartridgesParams(
             work_station="ws_bic_09_fh_001",
-            silica_cartridge_type="silica_12g",
+            silica_cartridge_type="silica_40g",
             sample_cartridge_location="bic_09B_l3_002",
             sample_cartridge_type="sample_40g",
             sample_cartridge_id="samp-001",
@@ -447,7 +447,7 @@ class TestResetStateViaCommand:
             "task-pop-001",
             "setup_tubes_to_column_machine",
             {
-                "silica_cartridge_type": "silica_12g",
+                "silica_cartridge_type": "silica_40g",
                 "sample_cartridge_location": "bic_09B_l3_002",
                 "sample_cartridge_type": "sample_40g",
                 "sample_cartridge_id": "samp-001",

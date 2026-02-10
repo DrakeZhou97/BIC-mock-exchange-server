@@ -117,9 +117,7 @@ class CCSimulator(BaseSimulator):
             create_cc_system_update(params.device_id, DeviceState.USING),
         ]
         logger.info("CC simulation complete for task {} ({:.0f}s)", task_id, total_duration)
-        return RobotResult(
-            code=200, msg="success", task_id=task_id, updates=final_updates
-        )
+        return RobotResult(code=200, msg="success", task_id=task_id, updates=final_updates)
 
     # ------------------------------------------------------------------
     # terminate_column_chromatography — QUICK
@@ -128,18 +126,6 @@ class CCSimulator(BaseSimulator):
     async def _simulate_terminate_cc(self, task_id: str, params: TerminateCCParams) -> RobotResult:
         """Simulate terminate_column_chromatography with result images."""
         logger.info("Simulating terminate_cc for task {}", task_id)
-
-        # Log: robot terminating CC
-        await self._publish_log(
-            task_id,
-            [
-                create_robot_update(self.robot_id, params.work_station, RobotState.WORKING),
-                create_cc_system_update(params.device_id, DeviceState.USING),
-            ],
-            "robot terminating CC",
-        )
-
-        await self._apply_delay(5.0, 10.0)
 
         # Retrieve experiment context from world_state if available
         experiment_params = None
@@ -184,6 +170,13 @@ class CCSimulator(BaseSimulator):
             self.image_base_url, params.work_station, params.device_id, params.device_type, "screen"
         )
 
-        return RobotResult(
-            code=200, msg="success", task_id=task_id, updates=updates, images=images
+        # Log: robot terminating CC
+        await self._publish_log(
+            task_id,
+            updates=updates,
+            msg="robot terminating CC",
         )
+
+        await self._apply_delay(10.0, 15.0)
+
+        return RobotResult(code=200, msg="success", task_id=task_id, updates=updates, images=images)

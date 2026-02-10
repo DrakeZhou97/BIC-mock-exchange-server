@@ -136,7 +136,7 @@ class TestConsumerIntegration:
 
         # 1. Send setup_cartridges → verify world state updated
         params1 = {
-            "silica_cartridge_type": "silica_12g",
+            "silica_cartridge_type": "silica_40g",
             "sample_cartridge_location": "bic_09B_l3_002",
             "sample_cartridge_type": "sample_40g",
             "sample_cartridge_id": "samp-001",
@@ -199,7 +199,7 @@ class TestConsumerIntegration:
 
         # 2. Send setup_cartridges twice → expect precondition failure (2001)
         params1 = {
-            "silica_cartridge_type": "silica_12g",
+            "silica_cartridge_type": "silica_40g",
             "sample_cartridge_location": "bic_09B_l3_002",
             "sample_cartridge_type": "sample_40g",
             "sample_cartridge_id": "samp-002",
@@ -308,7 +308,7 @@ class TestConsumerIntegration:
 
         # 1. Populate world state via commands
         params1 = {
-            "silica_cartridge_type": "silica_12g",
+            "silica_cartridge_type": "silica_40g",
             "sample_cartridge_location": "bic_09B_l3_002",
             "sample_cartridge_type": "sample_40g",
             "sample_cartridge_id": "samp-001",

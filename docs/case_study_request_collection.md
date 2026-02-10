@@ -28,7 +28,7 @@
 | Evaporator device_id      | `re-buchi-r180_001`         | `DeviceID.RE_BUCHI_R180_001`        |
 | Evaporator device_type    | `re-buchi-r180`             | `DeviceType.RE_BUCHI_R180`          |
 | Vacuum Pump device_id     | `pp-vacuubrand-pc3001_001`  | `DeviceID.PP_VACUUBRAND_PC3001_001` |
-| Silica Cartridge Type     | `silica_12g` / `silica_40g` | `CCSiliconCartridgeType` enum       |
+| Silica Cartridge Type     | `silica_40g`                | `CCSiliconCartridgeType` enum       |
 | Sample Cartridge Type     | `sample_40g`                | `CCSampleCartridgeType` enum        |
 | Sample Cartridge Location | `bic_09B_l3_002`            | `CCSampleCartridgeLocation` enum    |
 
@@ -46,7 +46,7 @@ Retrieve and mount silica + sample cartridges at a CC work station.
     "task_id": "task-setup-cartridges-001",
     "task_type": "setup_tubes_to_column_machine",
     "params": {
-        "silica_cartridge_type": "silica_12g",
+        "silica_cartridge_type": "silica_40g",
         "sample_cartridge_location": "bic_09B_l3_002",
         "sample_cartridge_type": "sample_40g",
         "sample_cartridge_id": "sample_40g_001",
@@ -60,7 +60,7 @@ Retrieve and mount silica + sample cartridges at a CC work station.
 > - Removed `silica_cartridge_id` — silica cartridges have no special identity.
 > - Removed `sample_cartridge_location_id` — replaced by `sample_cartridge_location`.
 > - Field `work_station_id` → `work_station` (matches ground truth schema).
-> - Cartridge type values normalized: `sepaflash_40g` → `silica_12g`, `ilok_40g` → `sample_40g`.
+> - Cartridge type values normalized: `sepaflash_40g` → `silica_40g`, `ilok_40g` → `sample_40g`.
 
 ### Example Response
 
@@ -81,7 +81,7 @@ Retrieve and mount silica + sample cartridges at a CC work station.
         },
         {
             "type": "silica_cartridge",
-            "id": "silica_12g_001",
+            "id": "silica_40g_001",
             "properties": {
                 "location": "ws_bic_09_fh_001",
                 "state": "inuse",
