@@ -15,7 +15,7 @@ from src.schemas.commands import (
     RobotState,
     SetupCartridgesParams,
     StartCCParams,
-    TaskName,
+    TaskType,
 )
 from src.schemas.results import (
     EntityUpdate,
@@ -29,65 +29,59 @@ class TestCommandSchemas:
     """Tests for command schema parsing."""
 
     def test_robot_command_parsing(self) -> None:
-        """Parse RobotCommand from dict with task_id, task_name, params."""
+        """Parse RobotCommand from dict with task_id, task_type, params."""
         data = {
             "task_id": "task-001",
-            "task_name": "setup_tubes_to_column_machine",
+            "task_type": "setup_tubes_to_column_machine",
             "params": {
-                "silica_cartridge_location_id": "loc-1",
                 "silica_cartridge_type": "12g",
-                "silica_cartridge_id": "sc-001",
-                "sample_cartridge_location_id": "loc-2",
+                "sample_cartridge_location": "loc-2",
                 "sample_cartridge_type": "sample",
                 "sample_cartridge_id": "samp-001",
-                "work_station_id": "ws-1",
+                "work_station": "ws-1",
             },
         }
         cmd = RobotCommand.model_validate(data)
 
         assert cmd.task_id == "task-001"
-        assert cmd.task_name == TaskName.SETUP_CARTRIDGES
-        assert cmd.params["work_station_id"] == "ws-1"
+        assert cmd.task_type == TaskType.SETUP_CARTRIDGES
+        assert cmd.params["work_station"] == "ws-1"
 
     def test_setup_cartridges_params(self) -> None:
         """Validate all required fields for SetupCartridgesParams."""
         params = SetupCartridgesParams(
-            silica_cartridge_location_id="loc-1",
             silica_cartridge_type="40g",
-            silica_cartridge_id="sc-001",
-            sample_cartridge_location_id="loc-2",
+            sample_cartridge_location="loc-2",
             sample_cartridge_type="sample",
             sample_cartridge_id="samp-001",
-            work_station_id="ws-1",
+            work_station="ws-1",
         )
 
-        assert params.silica_cartridge_id == "sc-001"
-        assert params.work_station_id == "ws-1"
+        assert params.sample_cartridge_id == "samp-001"
+        assert params.work_station == "ws-1"
         assert params.silica_cartridge_type == "40g"
 
     def test_start_cc_params_with_experiment(self) -> None:
         """Validate nested CCExperimentParams within StartCCParams."""
         exp = CCExperimentParams(
-            silicone_column="40g",
+            silicone_cartridge="40g",
             peak_gathering_mode="all",
-            air_clean_minutes=5,
+            air_purge_minutes=5.0,
             run_minutes=30,
             need_equilibration=True,
             left_rack="16x100",
             right_rack=None,
         )
         params = StartCCParams(
-            work_station_id="ws-1",
+            work_station="ws-1",
             device_id="isco-001",
             device_type="cc_system",
             experiment_params=exp,
-            end_state=RobotState.WATCH_CC_SCREEN,
         )
 
-        assert params.experiment_params.silicone_column == "40g"
+        assert params.experiment_params.silicone_cartridge == "40g"
         assert params.experiment_params.run_minutes == 30
         assert params.experiment_params.need_equilibration is True
-        assert params.end_state == RobotState.WATCH_CC_SCREEN
 
     def test_evaporation_profiles_parsing(self) -> None:
         """Complex nested profiles with trigger parse correctly."""
@@ -98,38 +92,28 @@ class TestCommandSchemas:
                 "target_temperature": 45.0,
                 "target_pressure": 300.0,
             },
-            "stop": {
-                "lower_height": 150.0,
-                "rpm": 200,
-                "target_temperature": 45.0,
-                "target_pressure": 100.0,
-                "trigger": {
-                    "type": "time_from_start",
-                    "time_in_sec": 1800,
+            "updates": [
+                {
+                    "lower_height": 150.0,
+                    "rpm": 200,
+                    "target_temperature": 50.0,
+                    "target_pressure": 150.0,
+                    "trigger": {
+                        "type": "time_from_start",
+                        "time_in_sec": 600,
+                    },
                 },
-            },
-            "lower_pressure": {
-                "lower_height": 150.0,
-                "rpm": 200,
-                "target_temperature": 50.0,
-                "target_pressure": 150.0,
-                "trigger": {
-                    "type": "time_from_start",
-                    "time_in_sec": 600,
-                },
-            },
+            ],
         }
         profiles = EvaporationProfiles.model_validate(data)
 
         assert isinstance(profiles.start, EvaporationProfile)
         assert profiles.start.target_temperature == 45.0
-        assert profiles.stop is not None
-        assert profiles.stop.trigger is not None
-        assert isinstance(profiles.stop.trigger, EvaporationTrigger)
-        assert profiles.stop.trigger.time_in_sec == 1800
-        assert profiles.lower_pressure is not None
-        assert profiles.lower_pressure.target_pressure == 150.0
-        assert profiles.reduce_bumping is None
+        assert len(profiles.updates) == 1
+        assert profiles.updates[0].trigger is not None
+        assert isinstance(profiles.updates[0].trigger, EvaporationTrigger)
+        assert profiles.updates[0].trigger.time_in_sec == 600
+        assert profiles.updates[0].target_pressure == 150.0
 
 
 class TestResultSchemas:

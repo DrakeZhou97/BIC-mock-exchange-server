@@ -6,6 +6,9 @@ between BIC Lab Service and the Robot Exchange. These types are the single
 source of truth for the mock server — no imports from the production codebase.
 
 When the production protocol changes, update this file to match.
+
+Golden rule: `docs/robot_messages_new.py` is the single source of truth
+for all message schemas.
 """
 
 from __future__ import annotations
@@ -21,59 +24,96 @@ from pydantic import BaseModel, Field
 
 
 class RobotState(StrEnum):
-    """Robot operational states.
-
-    Includes both stable end-states and intermediate states reported
-    during task execution.
-    """
+    """Robot operational states (v0.3 ground truth)."""
 
     IDLE = "idle"
+    WORKING = "working"
+    CHARGING = "charging"
+
+
+class RobotPosture:
+    """String constants for robot posture descriptions.
+
+    These are NOT enum values — they are used in the ``description`` field
+    of RobotProperties to describe what the robot is doing while in
+    ``RobotState.WORKING``.
+    """
+
     WAIT_FOR_SCREEN = "wait_for_screen_manipulation"
     WATCH_CC_SCREEN = "watch_column_machine_screen"
     MOVING_WITH_FLASK = "moving_with_round_bottom_flask"
     OBSERVE_EVAPORATION = "observe_evaporation"
-    # Intermediate states reported during task execution
-    MOVING = "moving"
-    TERMINATING_CC = "terminating_cc"
-    PULLING_OUT_TUBE_RACK = "pulling_out_tube_rack"
 
 
-class TaskName(StrEnum):
-    """Robot task command names."""
+class TaskType(StrEnum):
+    """Robot task command types (v0.3 ground truth — 7 tasks)."""
 
     SETUP_CARTRIDGES = "setup_tubes_to_column_machine"
     SETUP_TUBE_RACK = "setup_tube_rack"
-    COLLAPSE_CARTRIDGES = "collapse_cartridges"
     TAKE_PHOTO = "take_photo"
     START_CC = "start_column_chromatography"
     TERMINATE_CC = "terminate_column_chromatography"
-    FRACTION_CONSOLIDATION = "fraction_consolidation"
+    COLLECT_CC_FRACTIONS = "collect_column_chromatography_fractions"
     START_EVAPORATION = "start_evaporation"
-    STOP_EVAPORATION = "stop_evaporation"
-    SETUP_CCS_BINS = "setup_ccs_bins"
-    RETURN_CCS_BINS = "return_ccs_bins"
-    RETURN_CARTRIDGES = "return_cartridges"
-    RETURN_TUBE_RACK = "return_tube_rack"
 
 
 class EntityState(StrEnum):
-    """Common entity states."""
+    """Common entity states (v0.3 ground truth)."""
 
-    AVAILABLE = "available"
+    IDLE = "idle"
     MOUNTED = "mounted"
     USING = "using"
     USED = "used"
     RUNNING = "running"
-    TERMINATED = "terminated"
-    EVAPORATING = "evaporating"
-    # Mock-server extras (not in production ground truth)
-    RETURNED = "returned"
-    MAINTENANCE = "maintenance"
-    ERROR = "error"
 
 
-# Backward-compatible alias
-EquipmentState = EntityState
+class DeviceState(StrEnum):
+    """Device states (v0.3 ground truth)."""
+
+    IDLE = "idle"
+    USING = "using"
+    UNAVAILABLE = "unavailable"
+
+
+class ConsumableState(StrEnum):
+    """Consumable states (v0.3 ground truth)."""
+
+    UNUSED = "unused"
+    INUSE = "inuse"
+    USED = "used"
+
+
+class ToolState(StrEnum):
+    """Tool states (v0.3 ground truth)."""
+
+    AVAILABLE = "available"
+    INUSE = "inuse"
+    CONTAMINATED = "contaminated"
+
+
+class ContainerContentState(StrEnum):
+    """Container content states (v0.3 ground truth)."""
+
+    EMPTY = "empty"
+    FILL = "fill"
+    USED = "used"
+
+
+class ContainerLidState(StrEnum):
+    """Container lid states (v0.3 ground truth)."""
+
+    CLOSED = "closed"
+    OPENED = "opened"
+
+
+class SubstanceUnit(StrEnum):
+    """Substance unit types (v0.3 ground truth)."""
+
+    ML = "ml"
+    L = "l"
+    G = "g"
+    KG = "kg"
+    MG = "mg"
 
 
 class BinState(StrEnum):
@@ -93,88 +133,105 @@ class PeakGatheringMode(StrEnum):
 
 
 # =============================================================================
+# Shared Types
+# =============================================================================
+
+
+class Substance(BaseModel):
+    """Substance definition (v0.3 ground truth)."""
+
+    name: str = ""
+    zh_name: str = ""
+    unit: SubstanceUnit = SubstanceUnit.ML
+    amount: float | None = None
+
+
+class ContainerState(BaseModel):
+    """Container state (v0.3 ground truth)."""
+
+    content_state: ContainerContentState = ContainerContentState.EMPTY
+    has_lid: bool = False
+    lid_state: ContainerLidState | None = None
+    substance: Substance | None = None
+
+
+class CCGradientConfig(BaseModel):
+    """Column chromatography gradient configuration (v0.3 ground truth)."""
+
+    duration_minutes: float
+    solvent_b_ratio: float
+
+
+# =============================================================================
 # Command Parameters
 # =============================================================================
 
 
 class SetupCartridgesParams(BaseModel):
-    """Parameters for setup_cartridges task."""
+    """Parameters for setup_tubes_to_column_machine task (v0.3 ground truth)."""
 
-    silica_cartridge_location_id: str
-    silica_cartridge_type: str
-    silica_cartridge_id: str
-    sample_cartridge_location_id: str
-    sample_cartridge_type: str
+    silica_cartridge_type: str = "silica_12g"
+    sample_cartridge_location: str = "bic_09B_l3_002"
+    sample_cartridge_type: str = "sample_40g"
     sample_cartridge_id: str
-    work_station_id: str
+    work_station: str = "ws_bic_09_fh_001"
 
 
 class SetupTubeRackParams(BaseModel):
-    """Parameters for setup_tube_rack task."""
+    """Parameters for setup_tube_rack task (v0.3 ground truth)."""
 
-    tube_rack_location_id: str
-    work_station_id: str
-    end_state: RobotState = RobotState.IDLE
-
-
-class CollapseCartridgesParams(BaseModel):
-    """Parameters for collapse_cartridges task."""
-
-    work_station_id: str
-    silica_cartridge_id: str
-    sample_cartridge_id: str
-    end_state: RobotState = RobotState.IDLE
+    work_station: str = "ws_bic_09_fh_001"
 
 
 class TakePhotoParams(BaseModel):
-    """Parameters for take_photo task."""
+    """Parameters for take_photo task (v0.3 ground truth)."""
 
-    work_station_id: str
+    work_station: str
     device_id: str
     device_type: str
     components: list[str] | str
-    end_state: RobotState
 
 
 class CCExperimentParams(BaseModel):
-    """Column chromatography experiment parameters."""
+    """Column chromatography experiment parameters (v0.3 ground truth)."""
 
-    silicone_column: str = Field(..., description="Silica column spec, e.g. '40g'")
-    peak_gathering_mode: PeakGatheringMode = Field(..., description="all, peak, or none")
-    air_clean_minutes: int = Field(..., description="Air clean duration in minutes")
-    run_minutes: int = Field(..., description="Total run duration in minutes")
-    need_equilibration: bool = Field(..., description="Whether column equilibration needed")
-    left_rack: str | None = Field(default=None, description="Left tube rack spec")
+    silicone_cartridge: str = Field(default="silica_40g", description="Silica column spec, e.g. 'silica_40g'")
+    peak_gathering_mode: PeakGatheringMode = Field(default=PeakGatheringMode.PEAK, description="all, peak, or none")
+    air_purge_minutes: float = Field(default=1.2, description="Air purge duration in minutes")
+    run_minutes: int = Field(default=30, description="Total run duration in minutes")
+    solvent_a: str = Field(default="pet_ether", description="Solvent A")
+    solvent_b: str = Field(default="ethyl_acetate", description="Solvent B")
+    gradients: list[CCGradientConfig] = Field(default_factory=list, description="Gradient configurations")
+    need_equilibration: bool = Field(default=True, description="Whether column equilibration needed")
+    left_rack: str | None = Field(default="16x150", description="Left tube rack spec")
     right_rack: str | None = Field(default=None, description="Right tube rack spec")
 
 
 class StartCCParams(BaseModel):
-    """Parameters for start_column_chromatography task."""
+    """Parameters for start_column_chromatography task (v0.3 ground truth)."""
 
-    work_station_id: str
-    device_id: str
-    device_type: str
+    work_station: str = "ws_bic_09_fh_001"
+    device_id: str = "cc-isco-300p_001"
+    device_type: str = "cc-isco-300p"
     experiment_params: CCExperimentParams
-    end_state: RobotState
 
 
 class TerminateCCParams(BaseModel):
-    """Parameters for terminate_column_chromatography task."""
+    """Parameters for terminate_column_chromatography task (v0.3 ground truth)."""
 
-    work_station_id: str
-    device_id: str
-    device_type: str
-    end_state: RobotState
+    work_station: str = "ws_bic_09_fh_001"
+    device_id: str = "cc-isco-300p_001"
+    device_type: str = "cc-isco-300p"
+    experiment_params: CCExperimentParams
 
 
-class FractionConsolidationParams(BaseModel):
-    """Parameters for fraction_consolidation task."""
+class CollectCCFractionsParams(BaseModel):
+    """Parameters for collect_column_chromatography_fractions task (v0.3 ground truth)."""
 
-    work_station_id: str
-    device_id: str
-    device_type: str
+    work_station: str = "ws_bic_09_fh_001"
+    device_id: str = "cc-isco-300p_001"
+    device_type: str = "cc-isco-300p"
     collect_config: list[int] = Field(..., description="1=collect, 0=discard per tube")
-    end_state: RobotState
 
 
 class EvaporationTrigger(BaseModel):
@@ -196,69 +253,19 @@ class EvaporationProfile(BaseModel):
 
 
 class EvaporationProfiles(BaseModel):
-    """Collection of evaporation profiles for different stages."""
+    """Collection of evaporation profiles (v0.3 ground truth)."""
 
     start: EvaporationProfile = Field(..., description="Initial profile (required)")
-    stop: EvaporationProfile | None = None
-    lower_pressure: EvaporationProfile | None = None
-    reduce_bumping: EvaporationProfile | None = Field(
-        default=None,
-        description="Anti-bumping safety",
-    )
+    updates: list[EvaporationProfile] = Field(default_factory=list)
 
 
 class StartEvaporationParams(BaseModel):
-    """Parameters for start_evaporation task."""
+    """Parameters for start_evaporation task (v0.3 ground truth)."""
 
-    work_station_id: str
-    device_id: str
-    device_type: str
+    work_station: str = "ws_bic_09_fh_002"
+    device_id: str = "re-buchi-r180_001"
+    device_type: str = "re-buchi-r180"
     profiles: EvaporationProfiles
-    post_run_state: RobotState
-
-
-class StopEvaporationParams(BaseModel):
-    """Parameters for stop_evaporation task."""
-
-    work_station_id: str
-    device_id: str
-    device_type: str
-    end_state: RobotState = RobotState.IDLE
-
-
-class SetupCCSBinsParams(BaseModel):
-    """Parameters for setup_ccs_bins task."""
-
-    work_station_id: str
-    bin_location_ids: list[str]  # locations to fetch bins from
-    end_state: RobotState = RobotState.IDLE
-
-
-class ReturnCCSBinsParams(BaseModel):
-    """Parameters for return_ccs_bins task."""
-
-    work_station_id: str
-    waste_area_id: str  # where to bring the used bins
-    end_state: RobotState = RobotState.IDLE
-
-
-class ReturnCartridgesParams(BaseModel):
-    """Parameters for return_cartridges task."""
-
-    work_station_id: str
-    silica_cartridge_id: str
-    sample_cartridge_id: str
-    waste_area_id: str
-    end_state: RobotState = RobotState.IDLE
-
-
-class ReturnTubeRackParams(BaseModel):
-    """Parameters for return_tube_rack task."""
-
-    work_station_id: str
-    tube_rack_id: str
-    waste_area_id: str
-    end_state: RobotState = RobotState.IDLE
 
 
 # =============================================================================
@@ -267,13 +274,14 @@ class ReturnTubeRackParams(BaseModel):
 
 
 class CapturedImage(BaseModel):
-    """Captured image metadata."""
+    """Captured image metadata (v0.3 ground truth)."""
 
-    work_station_id: str
+    work_station: str
     device_id: str
     device_type: str
     component: str
     url: str
+    create_time: str = ""
 
 
 # =============================================================================
@@ -285,16 +293,15 @@ class TypedRobotCommand[P: BaseModel](BaseModel):
     """Generic command message with typed params, matching ground truth RobotCommand[P]."""
 
     task_id: str
-    task_name: TaskName
+    task_type: TaskType
     params: P
 
 
 # Concrete command type aliases
 SetupCartridgesCommand = TypedRobotCommand[SetupCartridgesParams]
 SetupTubeRackCommand = TypedRobotCommand[SetupTubeRackParams]
-CollapseCartridgesCommand = TypedRobotCommand[CollapseCartridgesParams]
 TakePhotoCommand = TypedRobotCommand[TakePhotoParams]
 StartCCCommand = TypedRobotCommand[StartCCParams]
 TerminateCCCommand = TypedRobotCommand[TerminateCCParams]
-FractionConsolidationCommand = TypedRobotCommand[FractionConsolidationParams]
+CollectCCFractionsCommand = TypedRobotCommand[CollectCCFractionsParams]
 StartEvaporationCommand = TypedRobotCommand[StartEvaporationParams]

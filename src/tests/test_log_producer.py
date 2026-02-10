@@ -31,7 +31,7 @@ class TestLogMessage:
         """LogMessage with entity updates serializes correctly."""
         robot_update = RobotUpdate(
             id="robot-001",
-            properties=RobotProperties(location="ws-1", state="moving"),
+            properties=RobotProperties(location="ws-1", state="idle"),
         )
         msg = LogMessage(
             task_id="task-002",
@@ -160,7 +160,7 @@ class TestBaseSimulatorLogIntegration:
 
         robot_update = RobotUpdate(
             id="test-robot",
-            properties=RobotProperties(location="ws-1", state="moving"),
+            properties=RobotProperties(location="ws-1", state="idle"),
         )
 
         await sim._publish_log("task-001", [robot_update], "test message")

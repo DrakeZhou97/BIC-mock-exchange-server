@@ -13,7 +13,8 @@ from src.generators.entity_updates import (
     create_round_bottom_flask_update,
 )
 from src.generators.timing import calculate_evaporation_duration, calculate_intermediate_interval
-from src.schemas.commands import TaskName
+from src.schemas.commands import DeviceState, RobotPosture, RobotState, TaskType
+from src.schemas.protocol import ContainerContentState, ContainerState, Substance, SubstanceUnit
 from src.schemas.results import RobotResult
 from src.simulators.base import BaseSimulator
 
@@ -26,9 +27,9 @@ if TYPE_CHECKING:
 class EvaporationSimulator(BaseSimulator):
     """Handles start_evaporation (long-running with intermediate updates showing sensor ramp)."""
 
-    async def simulate(self, task_id: str, task_name: TaskName, params: BaseModel) -> RobotResult:
-        if task_name != TaskName.START_EVAPORATION:
-            raise ValueError(f"EvaporationSimulator cannot handle task: {task_name}")
+    async def simulate(self, task_id: str, task_type: TaskType, params: BaseModel) -> RobotResult:
+        if task_type != TaskType.START_EVAPORATION:
+            raise ValueError(f"EvaporationSimulator cannot handle task: {task_type}")
         return await self._simulate_start_evaporation(task_id, params)  # type: ignore[arg-type]
 
     async def _simulate_start_evaporation(self, task_id: str, params: StartEvaporationParams) -> RobotResult:
@@ -50,7 +51,7 @@ class EvaporationSimulator(BaseSimulator):
         await self._publish_log(
             task_id,
             [
-                create_robot_update(self.robot_id, params.work_station_id, "moving"),
+                create_robot_update(self.robot_id, params.work_station, RobotState.WORKING),
             ],
             "robot moving to evaporation station",
         )
@@ -61,12 +62,25 @@ class EvaporationSimulator(BaseSimulator):
         # 2. Publish initial intermediate updates (ambient values)
         initial_temp = 25.0  # Ambient
         initial_pressure = 1013.0  # Ambient
-        flask_id = self._resolve_entity_id("round_bottom_flask", params.work_station_id)
+        flask_id = self._resolve_entity_id("round_bottom_flask", params.work_station)
+
+        flask_state = ContainerState(
+            content_state=ContainerContentState.FILL,
+            has_lid=False,
+            lid_state=None,
+            substance=Substance(name="", zh_name="", unit=SubstanceUnit.ML, amount=None),
+        )
+
         initial_updates = [
-            create_robot_update(self.robot_id, params.work_station_id, params.post_run_state),
+            create_robot_update(
+                self.robot_id,
+                params.work_station,
+                RobotState.WORKING,
+                description=RobotPosture.OBSERVE_EVAPORATION,
+            ),
             create_evaporator_update(
                 params.device_id,
-                running=True,
+                state=DeviceState.USING,
                 lower_height=lower_height,
                 rpm=rpm,
                 target_temperature=target_temp,
@@ -74,7 +88,7 @@ class EvaporationSimulator(BaseSimulator):
                 target_pressure=target_pressure,
                 current_pressure=initial_pressure,
             ),
-            create_round_bottom_flask_update(flask_id, params.work_station_id, "used,evaporating"),
+            create_round_bottom_flask_update(flask_id, params.work_station, flask_state, description="evaporating"),
         ]
         # Log: evaporation started with initial sensor values
         await self._publish_log(task_id, initial_updates, "evaporation started")
@@ -100,7 +114,7 @@ class EvaporationSimulator(BaseSimulator):
                 ramp_updates = [
                     create_evaporator_update(
                         params.device_id,
-                        running=True,
+                        state=DeviceState.USING,
                         lower_height=lower_height,
                         rpm=rpm,
                         target_temperature=target_temp,
@@ -121,27 +135,32 @@ class EvaporationSimulator(BaseSimulator):
                     target_pressure,
                 )
 
-        # 4b. Apply lower_pressure profile if provided
-        if params.profiles.lower_pressure is not None:
-            lp = params.profiles.lower_pressure
+        # 4b. Apply updates from profiles.updates if provided
+        if params.profiles.updates:
+            lp = params.profiles.updates[0]
             target_temp = lp.target_temperature
             target_pressure = lp.target_pressure
             lower_height = lp.lower_height
             rpm = lp.rpm
             logger.debug(
-                "Applied lower_pressure profile: target_temp={}, target_pressure={}, lower_height={}, rpm={}",
+                "Applied profile update: target_temp={}, target_pressure={}, lower_height={}, rpm={}",
                 target_temp,
                 target_pressure,
                 lower_height,
                 rpm,
             )
 
-        # 5. Final result -- at target values, running=False
+        # 5. Final result -- at target values, state=idle
         final_updates = [
-            create_robot_update(self.robot_id, params.work_station_id, params.post_run_state),
+            create_robot_update(
+                self.robot_id,
+                params.work_station,
+                RobotState.WORKING,
+                description=RobotPosture.OBSERVE_EVAPORATION,
+            ),
             create_evaporator_update(
                 params.device_id,
-                running=False,
+                state=DeviceState.IDLE,
                 lower_height=lower_height,
                 rpm=0,
                 target_temperature=target_temp,
@@ -151,4 +170,4 @@ class EvaporationSimulator(BaseSimulator):
             ),
         ]
         logger.info("Evaporation simulation complete for task {} ({:.0f}s)", task_id, total_duration)
-        return RobotResult(code=200, msg="start_evaporation completed", task_id=task_id, updates=final_updates)
+        return RobotResult(code=200, msg="success", task_id=task_id, updates=final_updates)

@@ -61,7 +61,7 @@ def test_apply_updates_overwrites_existing_entity() -> None:
             RobotUpdate(
                 type="robot",
                 id="robot-1",
-                properties={"location": "ws-1", "state": "moving"},
+                properties={"location": "ws-1", "state": "idle"},
             ),
         ]
     )
@@ -109,7 +109,7 @@ def test_get_entities_by_type() -> None:
 
     updates = [
         RobotUpdate(type="robot", id="robot-1", properties={"location": "ws-1", "state": "idle"}),
-        RobotUpdate(type="robot", id="robot-2", properties={"location": "ws-2", "state": "moving"}),
+        RobotUpdate(type="robot", id="robot-2", properties={"location": "ws-2", "state": "idle"}),
         SilicaCartridgeUpdate(type="silica_cartridge", id="sc-1", properties={"location": "ws-1", "state": "mounted"}),
     ]
 
@@ -120,7 +120,7 @@ def test_get_entities_by_type() -> None:
     assert "robot-1" in robots
     assert "robot-2" in robots
     assert robots["robot-1"]["state"] == "idle"
-    assert robots["robot-2"]["state"] == "moving"
+    assert robots["robot-2"]["state"] == "idle"
 
     cartridges = ws.get_entities_by_type("silica_cartridge")
     assert len(cartridges) == 1
@@ -191,7 +191,7 @@ def test_apply_updates_with_complex_entities() -> None:
             },
         ),
         CCSystemUpdate(
-            type="column_chromatography_system",
+            type="column_chromatography_machine",
             id="cc-1",
             properties={
                 "state": "running",
@@ -222,10 +222,10 @@ def test_apply_updates_with_complex_entities() -> None:
 
     evaporator = ws.get_entity("evaporator", "evap-1")
     assert evaporator is not None
-    assert evaporator["running"] is True
+    assert evaporator["state"] == "idle"
     assert evaporator["current_temperature"] == 45.0
 
-    cc_system = ws.get_entity("column_chromatography_system", "cc-1")
+    cc_system = ws.get_entity("column_chromatography_machine", "cc-1")
     assert cc_system is not None
     assert cc_system["state"] == "running"
     assert cc_system["experiment_params"]["run_minutes"] == 30
@@ -249,7 +249,7 @@ def test_world_state_thread_safety() -> None:
                     RobotUpdate(
                         type="robot",
                         id=robot_id,
-                        properties={"location": f"ws-{i}", "state": "moving"},
+                        properties={"location": f"ws-{i}", "state": "idle"},
                     ),
                 ]
             )

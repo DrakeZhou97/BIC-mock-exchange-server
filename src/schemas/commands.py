@@ -11,58 +11,65 @@ from pydantic import BaseModel
 from src.schemas.protocol import (
     BinState,
     CCExperimentParams,
-    CollapseCartridgesParams,
+    CCGradientConfig,
+    CollectCCFractionsParams,
+    ConsumableState,
+    ContainerContentState,
+    ContainerLidState,
+    ContainerState,
+    DeviceState,
     EntityState,
-    EquipmentState,
     EvaporationProfile,
     EvaporationProfiles,
     EvaporationTrigger,
-    FractionConsolidationParams,
     PeakGatheringMode,
-    ReturnCartridgesParams,
-    ReturnCCSBinsParams,
-    ReturnTubeRackParams,
+    RobotPosture,
     RobotState,
     SetupCartridgesParams,
-    SetupCCSBinsParams,
     SetupTubeRackParams,
     StartCCParams,
     StartEvaporationParams,
-    StopEvaporationParams,
+    Substance,
+    SubstanceUnit,
     TakePhotoParams,
-    TaskName,
+    TaskType,
     TerminateCCParams,
+    ToolState,
 )
 
 # Re-export for backwards compatibility
 __all__ = [
     # Enums
-    "TaskName",
+    "TaskType",
     "RobotState",
+    "RobotPosture",
     "EntityState",
-    "EquipmentState",
+    "DeviceState",
+    "ConsumableState",
+    "ToolState",
+    "ContainerContentState",
+    "ContainerLidState",
+    "SubstanceUnit",
     "PeakGatheringMode",
     "BinState",
+    # Shared types
+    "Substance",
+    "ContainerState",
+    "CCGradientConfig",
     # Command wrapper
     "RobotCommand",
     # Parameter schemas
     "SetupCartridgesParams",
     "SetupTubeRackParams",
-    "CollapseCartridgesParams",
     "TakePhotoParams",
     "CCExperimentParams",
     "StartCCParams",
     "TerminateCCParams",
-    "FractionConsolidationParams",
+    "CollectCCFractionsParams",
     "EvaporationTrigger",
     "EvaporationProfile",
     "EvaporationProfiles",
     "StartEvaporationParams",
-    "StopEvaporationParams",
-    "SetupCCSBinsParams",
-    "ReturnCCSBinsParams",
-    "ReturnCartridgesParams",
-    "ReturnTubeRackParams",
 ]
 
 
@@ -73,5 +80,5 @@ class RobotCommand(BaseModel):
     """Command message consumed from MQ. Params kept as raw dict for flexible parsing."""
 
     task_id: str
-    task_name: TaskName
+    task_type: TaskType
     params: dict
