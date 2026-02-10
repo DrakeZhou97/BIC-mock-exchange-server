@@ -24,6 +24,7 @@ from src.generators.timing import (
     calculate_evaporation_duration,
     calculate_intermediate_interval,
 )
+from src.schemas.protocol import ContainerState
 from src.schemas.results import (
     CCSExtModuleUpdate,
     CCSystemUpdate,
@@ -198,7 +199,7 @@ class TestEntityUpdateFactories:
         assert update.properties.pulled_out_mm == 200.0
         assert update.properties.pulled_out_rate == 0.8
         assert update.properties.closed is False
-        assert update.properties.front_waste_bin == "open"
+        assert isinstance(update.properties.front_waste_bin, ContainerState)
         assert update.properties.back_waste_bin is None
 
     def test_create_pcc_right_chute_update(self) -> None:
@@ -212,7 +213,7 @@ class TestEntityUpdateFactories:
         assert update.properties.pulled_out_rate == 0.8
         assert update.properties.closed is False
         assert update.properties.front_waste_bin is None
-        assert update.properties.back_waste_bin == "open"
+        assert isinstance(update.properties.back_waste_bin, ContainerState)
 
 
 # -- Image Generator Tests ----------------------------------------------------

@@ -13,7 +13,7 @@ from src.generators.entity_updates import (
     create_round_bottom_flask_update,
     create_tube_rack_update,
 )
-from src.schemas.commands import DeviceState, RobotPosture, RobotState, TaskType, ToolState
+from src.schemas.commands import DeviceState, RobotState, TaskType, ToolState
 from src.schemas.protocol import ContainerContentState, ContainerState, Substance, SubstanceUnit
 from src.schemas.results import RobotResult
 from src.simulators.base import BaseSimulator
@@ -40,7 +40,9 @@ class ConsolidationSimulator(BaseSimulator):
 
         # Resolve material IDs from WorldState
         tube_rack_id = self._resolve_entity_id("tube_rack", params.work_station)
-        flask_id = self._resolve_entity_id("round_bottom_flask", params.work_station)
+
+        # TODO: Robot get a flask from somewhere and return its ID and state to Lab Server
+        flask_id = "rbf_001"
 
         # Log: robot pulling out tube rack
         await self._publish_log(
@@ -61,16 +63,11 @@ class ConsolidationSimulator(BaseSimulator):
             content_state=ContainerContentState.FILL,
             has_lid=False,
             lid_state=None,
-            substance=Substance(name="", zh_name="", unit=SubstanceUnit.ML, amount=None),
+            substance=Substance(name="", zh_name="", unit=SubstanceUnit.ML, amount=0.0),
         )
 
         updates = [
-            create_robot_update(
-                self.robot_id,
-                params.work_station,
-                RobotState.WORKING,
-                description=RobotPosture.MOVING_WITH_FLASK,
-            ),
+            create_robot_update(self.robot_id, params.work_station, RobotState.IDLE),
             create_tube_rack_update(
                 tube_rack_id,
                 params.work_station,
@@ -81,8 +78,5 @@ class ConsolidationSimulator(BaseSimulator):
             create_pcc_left_chute_update(params.work_station, state=DeviceState.USING),
             create_pcc_right_chute_update(params.work_station, state=DeviceState.USING),
         ]
-
-        # Log: consolidation complete
-        await self._publish_log(task_id, updates, "consolidation complete")
 
         return RobotResult(code=200, msg="success", task_id=task_id, updates=updates)

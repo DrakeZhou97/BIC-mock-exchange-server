@@ -47,8 +47,6 @@ graph LR
     HB -->|"consume"| HC
 ```
 
-> Standalone `.mmd` source: [`docs/diagrams/architecture.mmd`](docs/diagrams/architecture.mmd)
-
 **Routing keys:**
 - `{robot_id}.cmd` — Commands from BIC Lab Service → Robot
 - `{robot_id}.result` — Final task results from Robot → BIC Lab Service
@@ -136,7 +134,7 @@ All settings are loaded from environment variables with `MOCK_` prefix via pydan
 | `MOCK_CC_INTERMEDIATE_INTERVAL` | `300.0`                                | CC progress update interval at 1.0x (seconds)                           |
 | `MOCK_RE_INTERMEDIATE_INTERVAL` | `300.0`                                | RE progress update interval at 1.0x (seconds)                           |
 
-## Supported Task Types (All 13 Tasks)
+## Supported Task Types (7 Tasks — v0.3 Ground Truth)
 
 | Task Name                                 | Realistic Duration    | At 0.1x Multiplier | Notes                                                 |
 | ----------------------------------------- | --------------------- | ------------------ | ----------------------------------------------------- |
@@ -147,12 +145,6 @@ All settings are loaded from environment variables with `MOCK_` prefix via pydan
 | `terminate_column_chromatography`         | 5 - 10 s              | 0.5 - 1 s          | Stops CC operation, captures result images            |
 | `collect_column_chromatography_fractions` | ~1 min (tube count)   | ~6 s               | Collects fractions from tubes into flask              |
 | `start_evaporation`                       | 30 - 90 min           | 3 - 9 min          | Long-running; sensor ramp via `.log` channel          |
-| `stop_evaporation`                        | 15 - 30 s             | 1.5 - 3 s          | Stops evaporator and returns flask                    |
-| `collapse_cartridges`                     | 10 - 15 s             | 1 - 1.5 s          | Disassembles cartridges after process completion      |
-| `setup_ccs_bins`                          | 10 - 20 s             | 1 - 2 s            | Sets up waste bins at CC workstation                  |
-| `return_ccs_bins`                         | 15 - 25 s             | 1.5 - 2.5 s        | Returns used bins to waste area                       |
-| `return_cartridges`                       | 20 - 30 s             | 2 - 3 s            | Removes and returns used cartridges                   |
-| `return_tube_rack`                        | 15 - 30 s             | 1.5 - 3 s          | Removes and returns used tube rack                    |
 
 ## World State Tracking & Preconditions
 
@@ -160,7 +152,7 @@ The mock server maintains an in-memory `WorldState` that tracks all entities (ro
 
 **Error Code Ranges:**
 - `1000-1009`: General errors (unknown task, validation failure)
-- `1010-1139`: Task-specific failures (per-task 10-code ranges)
+- `1010-1089`: Task-specific failures (per-task 10-code ranges)
 - `2000-2099`: Precondition violations (state-driven errors)
 
 **Special Commands:**
@@ -169,7 +161,6 @@ The mock server maintains an in-memory `WorldState` that tracks all entities (ro
 **Precondition Examples:**
 - `setup_cartridges` fails if ext_module already has cartridges (code 2001)
 - `terminate_cc` fails if CC system not running (code 2030-2031)
-- `collapse_cartridges` fails if cartridges not in 'used' state (code 2010-2013)
 
 ## Scenarios
 
@@ -188,7 +179,7 @@ The default mode. The server simulates the full task lifecycle:
 Simulates a robot error mid-task:
 1. Begins execution normally with intermediate updates
 2. Aborts partway through
-3. Publishes a `RobotResult` with task-specific error code (1010-1139), an error message, and partially updated entity states
+3. Publishes a `RobotResult` with task-specific error code (1010-1089), an error message, and partially updated entity states
 
 ### Timeout
 
@@ -206,13 +197,13 @@ Every incoming message passes through a multi-stage pipeline before reaching a s
 ```mermaid
 flowchart TD
     MSG["Incoming AMQP Message"] --> PARSE["Parse JSON → RobotCommand"]
-    PARSE --> SPECIAL{"task_name == reset_state?"}
+    PARSE --> SPECIAL{"task_type == reset_state?"}
     SPECIAL -->|"Yes"| RESET["Reset WorldState → publish code 200"]
     SPECIAL -->|"No"| TIMEOUT{"ScenarioManager:<br/>should_timeout?"}
     TIMEOUT -->|"Yes"| DROP["Drop message (no response)"]
     TIMEOUT -->|"No"| FAIL{"ScenarioManager:<br/>should_fail?"}
-    FAIL -->|"Yes"| ERR["Publish failure result<br/>(code 1010-1139)"]
-    FAIL -->|"No"| LOOKUP{"Simulator registered<br/>for task_name?"}
+    FAIL -->|"Yes"| ERR["Publish failure result<br/>(code 1010-1089)"]
+    FAIL -->|"No"| LOOKUP{"Simulator registered<br/>for task_type?"}
     LOOKUP -->|"No"| UNK["Publish code 1000<br/>(unknown task)"]
     LOOKUP -->|"Yes"| VALIDATE["Parse params via<br/>Pydantic model"]
     VALIDATE --> PRECOND{"PreconditionChecker:<br/>state valid?"}
@@ -226,8 +217,6 @@ flowchart TD
     BGSIM --> BGPUB["Publish RobotResult"]
     BGPUB --> BGSTATE["Apply updates to WorldState"]
 ```
-
-> Standalone `.mmd` source: [`docs/diagrams/command-dispatch.mmd`](docs/diagrams/command-dispatch.mmd)
 
 ## Long-Running Task Execution
 
@@ -265,8 +254,6 @@ sequenceDiagram
     SIM->>WS: apply_updates()
 ```
 
-> Standalone `.mmd` source: [`docs/diagrams/long-running-task.mmd`](docs/diagrams/long-running-task.mmd)
-
 ## Development
 
 ### Tech Stack
@@ -295,8 +282,8 @@ mock-robot-server/
 │   ├── state/                         # In-memory world state tracking
 │   └── tests/                         # Unit and integration tests
 ├── docs/
-│   ├── diagrams/                      # Mermaid diagram sources (.mmd)
-│   └── robot_id_quick_ref.md          # Robot ID design quick reference
+│   ├── robot_messages_new.py          # v0.3 ground truth protocol definitions
+│   └── case_study_request_collection.md  # Canonical request/response examples
 ├── Dockerfile
 ├── docker-compose.mock.yml
 ├── pyproject.toml
@@ -317,7 +304,7 @@ sequenceDiagram
     participant HB as HeartbeatPublisher
     participant WS as WorldState
     participant SM as ScenarioManager
-    participant SIM as Simulators (×6)
+    participant SIM as Simulators (×5)
     participant CC as CommandConsumer
 
     Note over Main: Startup Phase
@@ -329,9 +316,9 @@ sequenceDiagram
     Main->>HB: initialize() + start()
     Note over HB: Background loop begins<br/>(publishes every 2s)
     Main->>SM: create(settings)
-    Main->>SIM: create 6 simulators with<br/>(producer, settings, log_producer, world_state)
+    Main->>SIM: create 5 simulators with<br/>(producer, settings, log_producer, world_state)
     Main->>CC: create(connection, producer, scenario_manager, settings, world_state)
-    Main->>CC: register_simulator() × 13 tasks
+    Main->>CC: register_simulator() × 7 tasks
     Main->>CC: initialize() — declare queue + bind
     Main->>CC: start_consuming()
     Note over Main: Server ready — awaiting shutdown signal
@@ -343,8 +330,6 @@ sequenceDiagram
     Note over Main: Shutdown complete
 ```
 
-> Standalone `.mmd` source: [`docs/diagrams/server-lifecycle.mmd`](docs/diagrams/server-lifecycle.mmd)
-
 ### `mq/` — RabbitMQ Communication Layer
 
 The message queue module handles all AMQP communication with RabbitMQ. It implements the robot-side of the protocol: consuming commands and publishing results, logs, and heartbeats through a single TOPIC exchange.
@@ -354,8 +339,8 @@ The message queue module handles all AMQP communication with RabbitMQ. It implem
 | `connection.py`   | `MQConnection`       | Manages a robust AMQP connection with auto-reconnect. Provides lazy channel creation with QoS (prefetch count) and graceful disconnect. All MQ components share this singleton connection. **Lifecycle:** `connect()` during startup → shared by all producers/consumers → `disconnect()` on shutdown.                                                                                                                                                                                                                                                                                                         |
 | `consumer.py`     | `CommandConsumer`    | The core dispatcher. Declares the `{robot_id}.cmd` queue, binds it to the TOPIC exchange, and processes incoming `RobotCommand` messages. For each message it: parses and validates parameters via Pydantic, checks preconditions against WorldState, applies scenario overrides (timeout/failure/success), and dispatches to the appropriate simulator. Long-running tasks (`start_cc`, `start_evaporation`) are launched as background `asyncio.Task`s so the consumer remains non-blocking. **Lifecycle:** `initialize()` declares queue → `start_consuming()` begins loop → `stop()` cancels consumer tag. |
 | `producer.py`     | `ResultProducer`     | Publishes final `RobotResult` messages to `{robot_id}.result` with persistent delivery mode. Called once per task upon completion (or failure). **Lifecycle:** `initialize()` declares the exchange → called by consumer and long-running background tasks.                                                                                                                                                                                                                                                                                                                                                    |
-| `log_producer.py` | `LogProducer`        | Publishes real-time `LogMessage` entries to `{robot_id}.log` during task execution. Simulators call this to stream intermediate entity state changes (e.g., cartridge `available` → `mounted`) before the final result is ready. Uses persistent delivery. **Lifecycle:** `initialize()` declares exchange → injected into all simulators via constructor.                                                                                                                                                                                                                                                     |
-| `heartbeat.py`    | `HeartbeatPublisher` | Runs a background asyncio loop that publishes `HeartbeatMessage` to `{robot_id}.hb` at a configurable interval (default 2 s). Reads the robot's current state from WorldState so the heartbeat accurately reflects operational status (e.g., `watch_column_machine_screen` during CC). **Lifecycle:** `initialize()` + `start()` → background `asyncio.Task` runs indefinitely → `stop()` cancels the task gracefully.                                                                                                                                                                                         |
+| `log_producer.py` | `LogProducer`        | Publishes real-time `LogMessage` entries to `{robot_id}.log` during task execution. Simulators call this to stream intermediate entity state changes (e.g., cartridge `unused` → `inuse`) before the final result is ready. Uses persistent delivery. **Lifecycle:** `initialize()` declares exchange → injected into all simulators via constructor.                                                                                                                                                                                                                                                     |
+| `heartbeat.py`    | `HeartbeatPublisher` | Runs a background asyncio loop that publishes `HeartbeatMessage` to `{robot_id}.hb` at a configurable interval (default 2 s). Reads the robot's current state from WorldState so the heartbeat accurately reflects operational status (e.g., `working` during CC). **Lifecycle:** `initialize()` + `start()` → background `asyncio.Task` runs indefinitely → `stop()` cancels the task gracefully.                                                                                                                                                                                         |
 
 ### `schemas/` — Protocol Contract Definitions
 
@@ -363,8 +348,8 @@ Defines the Pydantic models and enums that constitute the wire protocol between 
 
 | File          | Contents                                                                                                                                                                                                                                                            | Design Notes                                                                                                                                                                                                                    |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `protocol.py` | `TaskName` (13 tasks), `RobotState` (8 states including intermediates: `moving`, `terminating_cc`, `pulling_out_tube_rack`), `EquipmentState` (9 states), `BinState` (3 states), `PeakGatheringMode`, plus all `*Params` models (one per task) and `CapturedImage`. | Single source of truth for the mock server. When the production protocol changes, update this file only. Uses `StrEnum` for JSON-friendly serialization.                                                                        |
-| `commands.py` | `RobotCommand` envelope model (`task_id`, `task_name`, `params`) and convenient re-exports of parameter models.                                                                                                                                                     | Thin wrapper — params arrive as a raw `dict` and are validated later against the task-specific model in `consumer.py`.                                                                                                          |
+| `protocol.py` | `TaskType` (7 tasks), `RobotState` (3 states: idle, working, charging), `EntityState` (5 states), `DeviceState`, `ConsumableState`, `ToolState`, `BinState`, `PeakGatheringMode`, plus all `*Params` models (one per task) and `CapturedImage`. | Single source of truth for the mock server. When the production protocol changes, update this file only. Uses `StrEnum` for JSON-friendly serialization. Aligned to `docs/robot_messages_new.py` ground truth.                  |
+| `commands.py` | `RobotCommand` envelope model (`task_id`, `task_type`, `params`) and convenient re-exports of parameter models.                                                                                                                                                     | Thin wrapper — params arrive as a raw `dict` and are validated later against the task-specific model in `consumer.py`.                                                                                                          |
 | `results.py`  | `RobotResult`, `LogMessage`, `HeartbeatMessage`, 10 entity update models (`RobotUpdate`, `SilicaCartridgeUpdate`, `CCSystemUpdate`, `EvaporatorUpdate`, etc.) combined into a discriminated union `EntityUpdate` type.                                              | Mock-friendly: property models use `str` for states (not strict enums) to tolerate compound states like `"used,pulled_out,ready_for_recovery"`. Discriminated union via the `type` literal field for type-safe deserialization. |
 
 ### `simulators/` — Per-Skill Task Simulation Logic
@@ -374,12 +359,11 @@ Each simulator encapsulates the behavior of one or more robot skills. All extend
 | File                         | Class                    | Tasks Handled                                                                                    | Design Notes                                                                                                                                                                                                                                                           |
 | ---------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `base.py`                    | `BaseSimulator` (ABC)    | —                                                                                                | Abstract `simulate()` method. Shared utilities: randomized delay with multiplier, log publishing via `LogProducer`, entity ID resolution from WorldState by location lookup. All simulators receive `(producer, settings, log_producer, world_state)` at construction. |
-| `setup_simulator.py`         | `SetupSimulator`         | `setup_tubes_to_column_machine`, `setup_tube_rack`, `collapse_cartridges`                        | Simulates pick-and-place operations. Emits intermediate states: robot moving → materials mounted/dismounted → robot idle.                                                                                                                                              |
+| `setup_simulator.py`         | `SetupSimulator`         | `setup_tubes_to_column_machine`, `setup_tube_rack`                                               | Simulates pick-and-place operations. Emits intermediate states: robot moving → materials mounted → robot idle.                                                                                                                                                         |
 | `cc_simulator.py`            | `CCSimulator`            | `start_column_chromatography` (**long-running**), `terminate_column_chromatography`              | `start_cc`: publishes initial update (CC `running`, materials `using`), then periodic progress updates at calculated intervals, then final result. `terminate_cc`: captures screen image, transitions materials to `used`. Resolves material IDs from WorldState.      |
 | `photo_simulator.py`         | `PhotoSimulator`         | `take_photo`                                                                                     | Delay scales by component count. Generates mock MinIO-style image URLs. Maps `device_type` strings to entity types for WorldState device-state updates.                                                                                                                |
 | `consolidation_simulator.py` | `ConsolidationSimulator` | `collect_column_chromatography_fractions`                                                        | Delay = (tubes × 3 s) + 10 s base. Produces updates for tube rack, round-bottom flask, and PCC left/right chutes with positioning data.                                                                                                                                |
 | `evaporation_simulator.py`   | `EvaporationSimulator`   | `start_evaporation` (**long-running**)                                                           | Publishes initial ambient sensor readings (25 °C, 1013 mbar), then linearly interpolates temperature and pressure toward targets across periodic updates, simulating a realistic sensor ramp.                                                                          |
-| `cleanup_simulator.py`       | `CleanupSimulator`       | `stop_evaporation`, `setup_ccs_bins`, `return_ccs_bins`, `return_cartridges`, `return_tube_rack` | Quick operations that transition entities to post-use states (evaporator → stopped, bins → closed, cartridges → stored in waste).                                                                                                                                      |
 
 ### `generators/` — Pure Factory Functions
 
@@ -398,7 +382,7 @@ Controls whether a given task succeeds, fails with a realistic error, or silentl
 | File          | Class / Function       | Design Notes                                                                                                                                                                                                   |
 | ------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `manager.py`  | `ScenarioManager`      | Decides outcome per command. Priority: `timeout_rate` (random roll → no response) > `failure_rate` (random roll or `default_scenario=failure` → error result) > success. Stateless — each call is independent. |
-| `failures.py` | `get_random_failure()` | Maps each `TaskName` to 4-5 realistic failure messages with task-specific error codes. Error code ranges: 1010-1019 for setup_cartridges, 1020-1029 for setup_tube_rack, etc. Returns `(code, message)` tuple. |
+| `failures.py` | `get_random_failure()` | Maps each `TaskType` to 3-4 realistic failure messages with task-specific error codes. Error code ranges: 1010-1019 for setup_cartridges, 1020-1029 for setup_tube_rack, etc. Returns `(code, message)` tuple. |
 
 ### `state/` — In-Memory World State Tracking
 
@@ -414,14 +398,14 @@ Maintains a consistent view of all entities (robot, devices, materials) so the m
 The protocol types (enums, command parameters, result types) are defined in `src/schemas/protocol.py`. This is a self-contained copy of the types from the BIC Lab Service's canonical protocol definitions.
 
 **When the production protocol changes**, update `protocol.py` to match the new contract. The types that need to stay in sync:
-- `TaskName`, `RobotState`, `EquipmentState`, `BinState` (enums)
+- `TaskType`, `RobotState`, `EntityState`, `DeviceState`, `ConsumableState`, `ToolState`, `BinState` (enums)
 - All `*Params` models (command parameters)
 - `CapturedImage` (result metadata)
 
 ### Extending
 
 **Add a new task type:**
-1. Add the task name to `TaskName` enum in `schemas/protocol.py`
+1. Add the task name to `TaskType` enum in `schemas/protocol.py`
 2. Define parameter model in `schemas/protocol.py`
 3. Re-export from `schemas/commands.py`
 4. Create a new simulator in `simulators/` (extend `BaseSimulator`)
@@ -443,7 +427,7 @@ Modify base duration ranges in `generators/timing.py`. Each task has a `(min, ma
 uv run pytest src/tests/ -v
 ```
 
-134 tests cover generators, scenarios, schemas, consumer integration, simulator integration, cleanup tasks, heartbeat, log producer, photo handling, preconditions, world state tracking, and full CC workflow.
+105 tests cover generators, scenarios, schemas, consumer integration, simulator integration, heartbeat, log producer, photo handling, preconditions, world state tracking, and full CC workflow.
 
 ## Case Study: Column Chromatography Workflow
 
@@ -451,12 +435,11 @@ This case study demonstrates a complete column chromatography workflow using the
 
 ### Scenario
 
-An AI agent orchestrates a column chromatography experiment. The workflow consists of 8 sequential steps:
+An AI agent orchestrates a column chromatography experiment. The workflow consists of 7 sequential steps:
 
 ```
 setup_cartridges -> setup_tube_rack -> take_photo -> start_cc
     -> terminate_cc -> collect_fractions -> start_evaporation
-    -> collapse_cartridges
 ```
 
 ### Step 1: Setup Cartridges
@@ -466,23 +449,21 @@ The agent publishes a command to mount silica and sample cartridges at the work 
 ```json
 {
   "task_id": "task-001",
-  "task_name": "setup_tubes_to_column_machine",
+  "task_type": "setup_tubes_to_column_machine",
   "params": {
-    "silica_cartridge_location_id": "shelf-A3",
-    "silica_cartridge_type": "40g",
-    "silica_cartridge_id": "sc-001",
-    "sample_cartridge_location_id": "shelf-B1",
-    "sample_cartridge_type": "standard",
-    "sample_cartridge_id": "sac-001",
-    "work_station_id": "fh_cc_001"
+    "silica_cartridge_type": "silica_12g",
+    "sample_cartridge_location": "bic_09B_l3_002",
+    "sample_cartridge_type": "sample_40g",
+    "sample_cartridge_id": "sample_40g_001",
+    "work_station": "ws_bic_09_fh_001"
   }
 }
 ```
 
-**Mock behavior:** 1.5-3 s delay (at 0.1x multiplier). Returns `code: 200` with entity updates:
-- Robot -> `idle` at `fh_cc_001`
-- Silica cartridge `sc-001` -> `mounted` at `fh_cc_001`
-- Sample cartridge `sac-001` -> `mounted` at `fh_cc_001`
+**Mock behavior:** 1.5-3 s delay (at 0.1x multiplier). Returns `code: 200`, `msg: "success"` with entity updates:
+- Robot -> `working` at `ws_bic_09_fh_001`, description `"wait_for_screen_manipulation"`
+- Silica cartridge -> `inuse` at `ws_bic_09_fh_001`
+- Sample cartridge -> `inuse` at `ws_bic_09_fh_001`
 - CCS ext module -> `using`
 
 ### Step 2: Setup Tube Rack
@@ -490,104 +471,104 @@ The agent publishes a command to mount silica and sample cartridges at the work 
 ```json
 {
   "task_id": "task-002",
-  "task_name": "setup_tube_rack",
+  "task_type": "setup_tube_rack",
   "params": {
-    "tube_rack_location_id": "shelf-C2",
-    "work_station_id": "fh_cc_001",
-    "end_state": "idle"
+    "work_station": "ws_bic_09_fh_001"
   }
 }
 ```
 
-**Mock behavior:** 1-2 s delay. Returns tube rack -> `mounted`, robot -> `idle`.
+**Mock behavior:** 1-2 s delay. Returns tube rack -> `inuse`, description `"mounted"`, robot -> `working`.
 
 ### Step 3: Take Pre-Run Photo
 
 ```json
 {
   "task_id": "task-003",
-  "task_name": "take_photo",
+  "task_type": "take_photo",
   "params": {
-    "work_station_id": "fh_cc_001",
-    "device_id": "cc-system-01",
-    "device_type": "column_chromatography_system",
-    "components": ["screen", "column"],
-    "end_state": "idle"
+    "work_station": "ws_bic_09_fh_001",
+    "device_id": "cc-isco-300p_001",
+    "device_type": "cc-isco-300p",
+    "components": ["screen"]
   }
 }
 ```
 
-**Mock behavior:** 0.4-1.0 s delay (2 components). Returns 2 `CapturedImage` entries with mock URLs and robot -> `idle`.
+**Mock behavior:** 0.2-0.5 s delay (1 component). Returns `CapturedImage` entry with mock URL and robot -> `idle`.
 
 ### Step 4: Start Column Chromatography (Long-Running)
 
 ```json
 {
   "task_id": "task-004",
-  "task_name": "start_column_chromatography",
+  "task_type": "start_column_chromatography",
   "params": {
-    "work_station_id": "fh_cc_001",
-    "device_id": "cc-system-01",
-    "device_type": "column_chromatography_system",
+    "work_station": "ws_bic_09_fh_001",
+    "device_id": "cc-isco-300p_001",
+    "device_type": "cc-isco-300p",
     "experiment_params": {
-      "silicone_column": "40g",
+      "silicone_cartridge": "silica_40g",
       "peak_gathering_mode": "peak",
-      "air_purge_minutes": 5.0,
-      "run_minutes": 45,
+      "air_purge_minutes": 1.2,
+      "run_minutes": 30,
       "need_equilibration": true,
-      "solvent_a": "hexane",
+      "solvent_a": "pet_ether",
       "solvent_b": "ethyl_acetate",
-      "left_rack": "10x75mm",
-      "right_rack": "10x75mm"
-    },
-    "end_state": "wait_for_screen_manipulation"
+      "left_rack": "16x150"
+    }
   }
 }
 ```
 
 **Mock behavior (long-running pattern):**
 1. Message is acknowledged immediately; simulation runs in a background asyncio task
-2. **Initial intermediate update** (via `{robot_id}.log`): robot -> `watch_column_machine_screen`, CC system -> `running` with experiment params and ISO timestamp, cartridges -> `using`, tube rack -> `using`
-3. **Periodic progress updates** (via `{robot_id}.log`): CC system -> `running` published every N seconds
-4. **Final result** (via `{robot_id}.result`, `code: 200`): robot -> `wait_for_screen_manipulation`, CC system -> `running`
+2. **Initial intermediate update** (via `{robot_id}.log`): robot -> `working` with description `"watch_column_machine_screen"`, CC system -> `using` with experiment params and ISO timestamp, cartridges -> `inuse`, tube rack -> `inuse`
+3. **Periodic progress updates** (via `{robot_id}.log`): CC system state published every N seconds
+4. **Final result** (via `{robot_id}.result`, `code: 200`): robot -> `working` with description `"wait_for_screen_manipulation"`, CC system -> `using`
 
 ### Step 5: Terminate CC
 
 ```json
 {
   "task_id": "task-005",
-  "task_name": "terminate_column_chromatography",
+  "task_type": "terminate_column_chromatography",
   "params": {
-    "work_station_id": "fh_cc_001",
-    "device_id": "cc-system-01",
-    "device_type": "column_chromatography_system",
-    "end_state": "idle"
+    "work_station": "ws_bic_09_fh_001",
+    "device_id": "cc-isco-300p_001",
+    "device_type": "cc-isco-300p",
+    "experiment_params": {
+      "silicone_cartridge": "silica_40g",
+      "peak_gathering_mode": "peak",
+      "air_purge_minutes": 1.2,
+      "run_minutes": 30,
+      "need_equilibration": true
+    }
   }
 }
 ```
 
-**Mock behavior:** 0.5-1 s delay. Returns CC system -> `terminated`, cartridges -> `used`, tube rack -> `used`, plus a captured `screen` image.
+**Mock behavior:** 0.5-1 s delay. Returns CC system -> `idle`, cartridges -> `used`, tube rack -> `used`, plus a captured `screen` image.
 
 ### Step 6: Collect Fractions
 
 ```json
 {
   "task_id": "task-006",
-  "task_name": "collect_column_chromatography_fractions",
+  "task_type": "collect_column_chromatography_fractions",
   "params": {
-    "work_station_id": "fh_cc_001",
-    "device_id": "cc-system-01",
-    "device_type": "column_chromatography_system",
-    "collect_config": [1, 1, 0, 1, 1, 0, 0, 1],
-    "end_state": "moving_with_round_bottom_flask"
+    "work_station": "ws_bic_09_fh_001",
+    "device_id": "cc-isco-300p_001",
+    "device_type": "cc-isco-300p",
+    "collect_config": [1, 1, 0, 1, 1, 0, 0, 1]
   }
 }
 ```
 
 **Mock behavior:** Delay scales with tube count (5 collected × 3 s + 10 s base = 25 s × 0.1 ≈ 2.5 s). Returns:
-- Robot -> `moving_with_round_bottom_flask`
-- Tube rack -> `used,pulled_out,ready_for_recovery`
-- Round bottom flask -> `used,ready_for_evaporate`
+- Robot -> `working` with description `"moving_with_round_bottom_flask"`
+- Tube rack with positioning data
+- Round bottom flask with container state
 - Left/right PCC chutes with positioning data
 
 ### Step 7: Start Evaporation (Long-Running)
@@ -595,11 +576,11 @@ The agent publishes a command to mount silica and sample cartridges at the work 
 ```json
 {
   "task_id": "task-007",
-  "task_name": "start_evaporation",
+  "task_type": "start_evaporation",
   "params": {
-    "work_station_id": "fh_cc_001",
-    "device_id": "evaporator-01",
-    "device_type": "evaporator",
+    "work_station": "ws_bic_09_fh_002",
+    "device_id": "re-buchi-r180_001",
+    "device_type": "re-buchi-r180",
     "profiles": {
       "start": {
         "lower_height": 150.0,
@@ -607,38 +588,24 @@ The agent publishes a command to mount silica and sample cartridges at the work 
         "target_temperature": 45.0,
         "target_pressure": 200.0
       },
-      "stop": {
-        "trigger": { "type": "time_from_start", "time_in_sec": 3600 }
-      }
-    },
-    "post_run_state": "idle"
+      "updates": [
+        {
+          "lower_height": 150.0,
+          "rpm": 120,
+          "target_temperature": 45.0,
+          "target_pressure": 50.0,
+          "trigger": { "type": "time_from_start", "time_in_sec": 3600 }
+        }
+      ]
+    }
   }
 }
 ```
 
 **Mock behavior (long-running pattern):**
-1. **Initial intermediate update** (via `{robot_id}.log`): robot -> `observe_evaporation`, evaporator -> `running=True` with ambient values (`current_temperature=25.0C`, `current_pressure=1013.0 mbar`)
-2. **Periodic ramp updates** (via `{robot_id}.log`): evaporator readings linearly interpolate toward targets (temperature: 25 °C -> 45 °C, pressure: 1013 -> 200 mbar)
-3. **Final result** (via `{robot_id}.result`, `code: 200`): evaporator -> `running=False`, `current_temperature=45.0`, `current_pressure=200.0`, robot -> `idle`
-
-### Step 8: Collapse Cartridges
-
-```json
-{
-  "task_id": "task-008",
-  "task_name": "collapse_cartridges",
-  "params": {
-    "work_station_id": "fh_cc_001",
-    "silica_cartridge_id": "sc-001",
-    "sample_cartridge_id": "sac-001",
-    "end_state": "idle"
-  }
-}
-```
-
-**Mock behavior:** 1-1.5 s delay. Returns cartridges -> `used` (ready for disposal), CCS ext module -> `used`, robot -> `idle`.
-
-**Prerequisite:** Robot must be `idle`. If step 7 used `post_run_state: "observe_evaporation"`, run `stop_evaporation` first.
+1. **Initial intermediate update** (via `{robot_id}.log`): robot -> `working` with description `"observe_evaporation"`, evaporator -> `using` with ambient values (`current_temperature=25.0°C`, `current_pressure=1013.0 mbar`)
+2. **Periodic ramp updates** (via `{robot_id}.log`): evaporator readings linearly interpolate toward targets (temperature: 25 °C → 45 °C, pressure: 1013 → 200 mbar)
+3. **Final result** (via `{robot_id}.result`, `code: 200`): evaporator -> `idle`, `current_temperature=45.0`, `current_pressure=200.0`, robot -> `idle`
 
 ### Testing Error Handling
 

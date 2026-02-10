@@ -13,7 +13,7 @@ from src.generators.entity_updates import (
     create_silica_cartridge_update,
     create_tube_rack_update,
 )
-from src.schemas.commands import ConsumableState, DeviceState, RobotPosture, RobotState, TaskType, ToolState
+from src.schemas.commands import ConsumableState, DeviceState, RobotState, TaskType, ToolState
 from src.schemas.results import RobotResult
 from src.simulators.base import BaseSimulator
 
@@ -105,12 +105,7 @@ class SetupSimulator(BaseSimulator):
         )
 
         updates = [
-            create_robot_update(
-                self.robot_id,
-                params.work_station,
-                RobotState.WORKING,
-                description=RobotPosture.WAIT_FOR_SCREEN,
-            ),
+            create_robot_update(self.robot_id, params.work_station, RobotState.IDLE),
             create_tube_rack_update(tube_rack_id, params.work_station, ToolState.INUSE, description="mounted"),
         ]
         return RobotResult(code=200, msg="success", task_id=task_id, updates=updates)

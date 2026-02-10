@@ -88,7 +88,9 @@ async def run_server() -> None:
     evaporation_sim = EvaporationSimulator(producer, settings, log_producer=log_producer, world_state=world_state)
 
     # --- Consumer ---
-    consumer = CommandConsumer(mq, producer, scenario_manager, settings, world_state=world_state)
+    consumer = CommandConsumer(
+        mq, producer, scenario_manager, settings, world_state=world_state, log_producer=log_producer
+    )
 
     consumer.register_simulator(TaskType.SETUP_CARTRIDGES, setup_sim)
     consumer.register_simulator(TaskType.SETUP_TUBE_RACK, setup_sim)

@@ -62,13 +62,16 @@ class EvaporationSimulator(BaseSimulator):
         # 2. Publish initial intermediate updates (ambient values)
         initial_temp = 25.0  # Ambient
         initial_pressure = 1013.0  # Ambient
-        flask_id = self._resolve_entity_id("round_bottom_flask", params.work_station)
+
+        # TODO: How the flask_id gets is not determined yet.
+        # flask_id = self._resolve_entity_id("round_bottom_flask", params.work_station)
+        flask_id = "rbf_001"
 
         flask_state = ContainerState(
             content_state=ContainerContentState.FILL,
             has_lid=False,
             lid_state=None,
-            substance=Substance(name="", zh_name="", unit=SubstanceUnit.ML, amount=None),
+            substance=Substance(name="", zh_name="", unit=SubstanceUnit.ML, amount=0.0),
         )
 
         initial_updates = [
@@ -152,12 +155,7 @@ class EvaporationSimulator(BaseSimulator):
 
         # 5. Final result -- at target values, state=idle
         final_updates = [
-            create_robot_update(
-                self.robot_id,
-                params.work_station,
-                RobotState.WORKING,
-                description=RobotPosture.OBSERVE_EVAPORATION,
-            ),
+            create_robot_update(self.robot_id, params.work_station, RobotState.IDLE),
             create_evaporator_update(
                 params.device_id,
                 state=DeviceState.IDLE,

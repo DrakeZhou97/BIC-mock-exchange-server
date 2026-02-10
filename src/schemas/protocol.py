@@ -143,7 +143,7 @@ class Substance(BaseModel):
     name: str = ""
     zh_name: str = ""
     unit: SubstanceUnit = SubstanceUnit.ML
-    amount: float | None = None
+    amount: float = 0.0
 
 
 class ContainerState(BaseModel):

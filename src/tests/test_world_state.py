@@ -212,7 +212,7 @@ def test_apply_updates_with_complex_entities() -> None:
                 "pulled_out_mm": 100.0,
                 "pulled_out_rate": 5.0,
                 "closed": False,
-                "front_waste_bin": "open",
+                "front_waste_bin": {"content_state": "empty", "has_lid": False, "lid_state": None, "substance": None},
                 "back_waste_bin": None,
             },
         ),
@@ -232,7 +232,7 @@ def test_apply_updates_with_complex_entities() -> None:
 
     chute = ws.get_entity("pcc_left_chute", "pcc-left-ws-1")
     assert chute is not None
-    assert chute["front_waste_bin"] == "open"
+    assert chute["front_waste_bin"] == {"content_state": "empty", "has_lid": False, "lid_state": None, "substance": None}
     assert chute["back_waste_bin"] is None
 
 

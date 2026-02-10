@@ -113,12 +113,7 @@ class CCSimulator(BaseSimulator):
 
         # 5. Final result
         final_updates = [
-            create_robot_update(
-                self.robot_id,
-                params.work_station,
-                RobotState.WORKING,
-                description=RobotPosture.WATCH_CC_SCREEN,
-            ),
+            create_robot_update(self.robot_id, params.work_station, RobotState.IDLE),
             create_cc_system_update(params.device_id, DeviceState.USING),
         ]
         logger.info("CC simulation complete for task {} ({:.0f}s)", task_id, total_duration)
@@ -184,9 +179,6 @@ class CCSimulator(BaseSimulator):
             create_tube_rack_update(tube_rack_id, params.work_station, ToolState.CONTAMINATED, description="used"),
             create_ccs_ext_module_update(ext_module_id, DeviceState.USING, description="cartridges still mounted"),
         ]
-
-        # Log: CC terminated, materials used
-        await self._publish_log(task_id, updates, "CC terminated, materials used")
 
         images = generate_captured_images(
             self.image_base_url, params.work_station, params.device_id, params.device_type, "screen"

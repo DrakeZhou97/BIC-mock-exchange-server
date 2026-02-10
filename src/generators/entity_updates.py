@@ -170,6 +170,11 @@ def create_evaporator_update(
     )
 
 
+def _open_waste_bin() -> ContainerState:
+    """Create an 'open' waste bin as a proper ContainerState (empty, no lid)."""
+    return ContainerState()
+
+
 def create_pcc_left_chute_update(
     chute_id: str,
     *,
@@ -177,11 +182,16 @@ def create_pcc_left_chute_update(
     pulled_out_mm: float = 200.0,
     pulled_out_rate: float = 0.8,
     closed: bool = False,
-    front_waste_bin: ContainerState | str | None = "open",
-    back_waste_bin: ContainerState | str | None = None,
+    front_waste_bin: ContainerState | None = None,
+    back_waste_bin: ContainerState | None = None,
     description: str = "",
 ) -> PCCLeftChuteUpdate:
-    """Create a post-CC left chute state update."""
+    """Create a post-CC left chute state update.
+
+    Default: front_waste_bin gets an open ContainerState if not explicitly provided.
+    """
+    if front_waste_bin is None:
+        front_waste_bin = _open_waste_bin()
     return PCCLeftChuteUpdate(
         id=chute_id,
         properties=PCCChuteProperties(
@@ -203,11 +213,16 @@ def create_pcc_right_chute_update(
     pulled_out_mm: float = 200.0,
     pulled_out_rate: float = 0.8,
     closed: bool = False,
-    front_waste_bin: ContainerState | str | None = None,
-    back_waste_bin: ContainerState | str | None = "open",
+    front_waste_bin: ContainerState | None = None,
+    back_waste_bin: ContainerState | None = None,
     description: str = "",
 ) -> PCCRightChuteUpdate:
-    """Create a post-CC right chute state update."""
+    """Create a post-CC right chute state update.
+
+    Default: back_waste_bin gets an open ContainerState if not explicitly provided.
+    """
+    if back_waste_bin is None:
+        back_waste_bin = _open_waste_bin()
     return PCCRightChuteUpdate(
         id=chute_id,
         properties=PCCChuteProperties(

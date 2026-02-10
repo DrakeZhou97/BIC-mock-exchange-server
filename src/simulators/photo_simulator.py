@@ -70,9 +70,9 @@ class PhotoSimulator(BaseSimulator):
                 f"photo taken for {component}",
             )
 
-        # Build updates list starting with robot state
+        # Build updates list — final result always returns idle
         updates: list[EntityUpdate] = [
-            create_robot_update(self.robot_id, params.work_station, current_state, current_description),
+            create_robot_update(self.robot_id, params.work_station, RobotState.IDLE),
         ]
 
         # Add device state update if available in world_state

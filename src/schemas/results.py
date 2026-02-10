@@ -90,8 +90,8 @@ class PCCChuteProperties(BaseModel):
     pulled_out_mm: float = 0.0
     pulled_out_rate: float = 0.0
     closed: bool = True
-    front_waste_bin: ContainerState | str | None = None
-    back_waste_bin: ContainerState | str | None = None
+    front_waste_bin: ContainerState | None = None
+    back_waste_bin: ContainerState | None = None
     description: str = ""
 
 

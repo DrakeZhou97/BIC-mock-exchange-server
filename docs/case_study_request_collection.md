@@ -37,8 +37,7 @@
 ## 1. setup_cartridges
 
 Retrieve and mount silica + sample cartridges at a CC work station.
-
-**Wire task_type:** `setup_tubes_to_column_machine`
+**Wire task_type:** **`setup_tubes_to_column_machine`**
 
 ### Request
 
@@ -531,10 +530,10 @@ Pull out tube rack, collect target fractions into a round-bottom flask, discard 
                     "has_lid": false,
                     "lid_state": null,
                     "substance": {
-                        "name": "",
-                        "zh_name": "",
+                        "name": "water",
+                        "zh_name": "水",
                         "unit": "ml",
-                        "amount": null
+                        "amount": 10.0
                     }
                 },
                 "description": ""

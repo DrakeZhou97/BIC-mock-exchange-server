@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 
     from src.config import MockSettings
     from src.mq.connection import MQConnection
+    from src.mq.log_producer import LogProducer
     from src.mq.producer import ResultProducer
     from src.state.preconditions import PreconditionChecker
     from src.state.world_state import WorldState
@@ -86,12 +87,14 @@ class CommandConsumer:
         scenario_manager: ScenarioManager,
         settings: MockSettings,
         world_state: WorldState | None = None,
+        log_producer: LogProducer | None = None,
     ) -> None:
         self._connection = connection
         self._producer = producer
         self._scenario_manager = scenario_manager
         self._settings = settings
         self._world_state = world_state
+        self._log_producer = log_producer
         self._simulators: dict[TaskType, BaseSimulator] = {}
         self._queue: AbstractQueue | None = None
         self._consumer_tag: str | None = None
@@ -249,6 +252,7 @@ class CommandConsumer:
                     asyncio.create_task(self._run_long_task(task_id, task_type, simulator, params_model))
                 else:
                     result = await simulator.simulate(task_id, task_type, params_model)
+                    await self._publish_final_log(result)
                     await self._producer.publish_result(result)
                     # Apply state updates after successful execution
                     if self._world_state is not None and result.is_success():
@@ -276,6 +280,15 @@ class CommandConsumer:
             raise ValueError(f"No parameter model registered for {task_type}")
         return model_cls.model_validate(raw_params)
 
+    async def _publish_final_log(self, result: RobotResult) -> None:
+        """Publish the final entity updates from a result to the log channel.
+
+        This ensures the final entity state is available on both the log and result
+        channels, so BIC-lab-service can consume from either.
+        """
+        if self._log_producer is not None and result.is_success() and result.updates:
+            await self._log_producer.publish_log(result.task_id, result.updates, "task_completed")
+
     async def _run_long_task(
         self,
         task_id: str,
@@ -286,6 +299,7 @@ class CommandConsumer:
         """Execute a long-running simulation and publish its result."""
         try:
             result = await simulator.simulate(task_id, task_type, params)
+            await self._publish_final_log(result)
             await self._producer.publish_result(result)
             # Apply state updates after successful execution
             if self._world_state is not None and result.is_success():
